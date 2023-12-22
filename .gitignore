@@ -1,0 +1,19 @@
+# Ignore enviroment
+/myenv/
+/__pycache__/
+
+# Ignore result folder
+/result/
+/saved_choosen/
+/saved_models/
+/log/
+
+#
+
+# Ignore configuration files
+/dataset/
+/dataset_split/
+
+# Ignore custom
+test.py
+data_split.py
