@@ -7,12 +7,13 @@
 /saved_choosen/
 /saved_models/
 /log/
+/client_saved/
 
-#
-
-# Ignore configuration files
+# Ignore data's folder
 /dataset/
 /dataset_split/
+/face_dataset/
+/face_dataset_split/
 
 # Ignore custom
 test.py

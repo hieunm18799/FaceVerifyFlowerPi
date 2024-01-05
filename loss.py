@@ -9,8 +9,8 @@ class ArcMarginProduct(nn.Module):
     def __init__(self,
                  feature_dim,
                  class_dim,
-                 margin=0.2,
-                 scale=30.0,):
+                 margin=0.5,
+                 scale=64.0,):
         super().__init__()
         self.feature_dim = feature_dim
         self.class_dim = class_dim

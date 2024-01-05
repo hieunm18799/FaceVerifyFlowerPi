@@ -1,29 +1,125 @@
 import flwr as fl
 from flwr.common import FitRes, Parameters, EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy import Strategy
+from flwr.server.history import History
+from flwr.server.client_manager import ClientManager
+from flwr.server.client_manager import SimpleClientManager
+from flwr.common.logger import log
 
 import torch
 # from torchsummary import summary
-import pandas as pd
+# import numpy as np
 
+from utils import EarlyStopping, save_model
 from model_PTH import MobileFaceNet, INPUT_SHAPE
 from loss import ArcMarginProduct
 
-# import numpy as np
+from pandas import DataFrame
+import argparse
+from logging import INFO
 from typing import Dict, List, Optional, Tuple, Union, OrderedDict
-from termcolor import colored
 from collections import defaultdict
 import datetime
 import os
+import timeit
 
 #________________________ VARIABLES ___________________________
 NUMBER_CLIENTS = 3
 CLASSES_NUM = 15
 THRESHOLD = 0.9
+ROUNDS = 10
 
 global_accuracy = 0.0
 devices_history = defaultdict(lambda: [])
+best_model_saved = False
 #________________________ CLASS ___________________________
+class FlServer(fl.server.Server):
+    def __init__(
+        self,
+        *,
+        client_manager: ClientManager,
+        strategy: Optional[Strategy] = None,
+        early_stopper: EarlyStopping,
+    ) -> None:
+        super().__init__(client_manager=client_manager, strategy=strategy)
+        self.early_stopper = early_stopper
+
+    def fit(self, num_rounds: int, timeout: Optional[float]) -> History:
+        """Run federated averaging for a number of rounds."""
+        history = History()
+
+        # Initialize parameters
+        log(INFO, "Initializing global parameters")
+        self.parameters = super()._get_initial_parameters(timeout=timeout)
+        log(INFO, "Evaluating initial parameters")
+        res = self.strategy.evaluate(0, parameters=self.parameters)
+        if res is not None:
+            log(
+                INFO,
+                "initial parameters (loss, other metrics): %s, %s",
+                res[0],
+                res[1],
+            )
+            history.add_loss_centralized(server_round=0, loss=res[0])
+            history.add_metrics_centralized(server_round=0, metrics=res[1])
+
+        # Run federated learning for num_rounds
+        log(INFO, "FL starting")
+        start_time = timeit.default_timer()
+
+        for current_round in range(1, num_rounds + 1):
+            # Train model and replace previous global model
+            res_fit = super().fit_round(
+                server_round=current_round,
+                timeout=timeout,
+            )
+            if res_fit is not None:
+                parameters_prime, fit_metrics, _ = res_fit  # fit_metrics_aggregated
+                if parameters_prime:
+                    self.parameters = parameters_prime
+                history.add_metrics_distributed_fit(
+                    server_round=current_round, metrics=fit_metrics
+                )
+
+            # Evaluate model using strategy implementation
+            res_cen = self.strategy.evaluate(current_round, parameters=self.parameters)
+            if res_cen is not None:
+                loss_cen, metrics_cen = res_cen
+                log(
+                    INFO,
+                    "fit progress: (%s, %s, %s, %s)",
+                    current_round,
+                    loss_cen,
+                    metrics_cen,
+                    timeit.default_timer() - start_time,
+                )
+                history.add_loss_centralized(server_round=current_round, loss=loss_cen)
+                history.add_metrics_centralized(
+                    server_round=current_round, metrics=metrics_cen
+                )
+
+            # Evaluate model on a sample of available clients
+            res_fed = super().evaluate_round(server_round=current_round, timeout=timeout)
+            if res_fed is not None:
+                loss_fed, evaluate_metrics_fed, _ = res_fed
+                if loss_fed is not None:
+                    history.add_loss_distributed(
+                        server_round=current_round, loss=loss_fed
+                    )
+                    history.add_metrics_distributed(
+                        server_round=current_round, metrics=evaluate_metrics_fed
+                    )
+                # Apply early stopping after the result of test on all clients
+                if self.early_stopper.early_stop(loss_fed):
+                    return history
+
+        # Bookkeeping
+        end_time = timeit.default_timer()
+        elapsed = end_time - start_time
+        log(INFO, "FL finished in %s", elapsed)
+        return history
+    
 class CustomStrategy(fl.server.strategy.FedAvg):
     def aggregate_fit(
         self,
@@ -40,8 +136,9 @@ class CustomStrategy(fl.server.strategy.FedAvg):
             devices_history[f'{r.metrics["id"]}-Train-Loss'].append(r.metrics["loss"])
             devices_history[f'{r.metrics["id"]}-Train-Accuracy'].append(r.metrics["train_acc"])
             devices_history[f'{r.metrics["id"]}-Test-Accuracy'].append(r.metrics["test_acc"])
-            devices_history[f'{r.metrics["id"]}-Test-TPR'].append(r.metrics["tpr"])
-            devices_history[f'{r.metrics["id"]}-Test-FPR'].append(r.metrics["fpr"])
+            devices_history[f'{r.metrics["id"]}-Test-Precision'].append(r.metrics["precision"])
+            devices_history[f'{r.metrics["id"]}-Test-Recall'].append(r.metrics["recall"])
+            devices_history[f'{r.metrics["id"]}-Epochs'].append(r.metrics["epochs"])
         cur_parameters = fl.common.parameters_to_ndarrays(aggregated_parameters)
         
         params_dict = zip(model.state_dict().keys(), cur_parameters)
@@ -57,7 +154,7 @@ class CustomStrategy(fl.server.strategy.FedAvg):
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
         """Aggregate evaluation accuracy using weighted average."""
-        global cur_parameters, global_accuracy
+        global cur_parameters, global_accuracy, best_model_saved
         if not results:
             return None, {}
 
@@ -66,8 +163,8 @@ class CustomStrategy(fl.server.strategy.FedAvg):
 
         for _, r in results:
             devices_history[f'{r.metrics["id"]}-Aggregated-Test-Accuracy'].append(r.metrics["accuracy"])
-            devices_history[f'{r.metrics["id"]}-Aggregated-Test-TPR'].append(r.metrics["tpr"])
-            devices_history[f'{r.metrics["id"]}-Aggregated-Test-FPR'].append(r.metrics["fpr"])
+            devices_history[f'{r.metrics["id"]}-Aggregated-Test-Precision'].append(r.metrics["precision"])
+            devices_history[f'{r.metrics["id"]}-Aggregated-Test-Recall'].append(r.metrics["recall"])
         accuracies = [r.metrics["accuracy"] * r.num_examples for _, r in results]
         examples = [r.num_examples for _, r in results]
 
@@ -81,43 +178,54 @@ class CustomStrategy(fl.server.strategy.FedAvg):
             state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
             model.load_state_dict(state_dict, strict=True)
             save_model(model, 'saved_models/best_model.pth')
+            best_model_saved = True
+        else:
+            best_model_saved = False
 
         return aggregated_loss, {"accuracy": aggregated_accuracy}
 
 #________________________ FUNCTION ___________________________
-def save_model(model, folder_path):
-    torch.save(model.state_dict(), folder_path)
-    print(colored("Model saved to %s" % folder_path, "red"))
+def fit_config(server_round: int):
+    config = {
+        # "local_epochs": 3 if global_accuracy > 0.8 else 5,
+        'best_model_saved': best_model_saved,
+        "local_epochs": 5,
+        "lr": 0.0001 if global_accuracy > 0.8 else 0.001,
+        "threshold": args.threshold,
+        "server_round": server_round,
+    }
+    return config
+
+def evaluate_config(server_round: int):
+    config = {
+        "threshold": args.threshold,
+    }
+    return config
 
 #________________________ START ___________________________
 if not os.path.exists('result'):
     os.makedirs('result')
 if not os.path.exists('saved_models'):
-    os.makedirs('saved_models')    
-#________________________ FEDERATED LEARNING ___________________________
-def fit_config(server_round: int):
-    """Return training configuration dict for each round.
-    """
-    config = {
-        # "local_epochs": 3 if global_accuracy > 0.9 else 5,
-        "local_epochs": 3,
-        "threshold": THRESHOLD,
-    }
-    return config
+    os.makedirs('saved_models')
 
-
-def evaluate_config(server_round: int):
-    """Return evaluation configuration dict for each round.
-    """
-    config = {
-        # "test_steps": 5 if server_round < 4 else 10,
-        "threshold": THRESHOLD,
-        }
-    return config
+parser = argparse.ArgumentParser(description="Flower Embedded devices")
+parser.add_argument(
+    "--rounds",
+    type=int,
+    default=ROUNDS,
+    help=f"The number of rounds! (deafault 10)",
+)
+parser.add_argument(
+    "--threshold",
+    type=float,
+    default=THRESHOLD,
+    help=f"Set the threshold! (deafault 0.9)",
+)
+args = parser.parse_args()
 
 device = torch.device('cpu')
 model = MobileFaceNet().to(device)
-arc_loss = ArcMarginProduct(128, CLASSES_NUM + 1, 0.5, 64).to(device)
+arc_loss = ArcMarginProduct(128, CLASSES_NUM, 0.5, 64).to(device)
 
 # model_path = './model_PTH/best_model.pth'
 # state_dict = torch.load(model_path, map_location='cpu')
@@ -127,6 +235,7 @@ arc_loss = ArcMarginProduct(128, CLASSES_NUM + 1, 0.5, 64).to(device)
 # model.load_state_dict(new_state_dict)
 # summary(model, INPUT_SHAPE)
 
+#________________________ FEDERATED LEARNING ___________________________
 # Create strategy
 strategy = CustomStrategy(
     fraction_fit = 1.0,
@@ -142,8 +251,13 @@ strategy = CustomStrategy(
 )
 
 fl.server.start_server(
+    server=FlServer(
+        client_manager=SimpleClientManager(),
+        early_stopper=EarlyStopping(args.rounds // 2),
+        strategy=strategy,
+    ),
     server_address="0.0.0.0:8080",
-    config=fl.server.ServerConfig(num_rounds = 10),
+    config=fl.server.ServerConfig(num_rounds = args.rounds),
     strategy=strategy,
 # Start Flower server (SSL-enabled) for four rounds of federated learning
     # certificates=(
@@ -153,8 +267,6 @@ fl.server.start_server(
     # ),
 )
 
-print(devices_history)
-df = pd.DataFrame(devices_history)
-
 # Save the DataFrame to a CSV file
-df.to_csv(f'result/{datetime.datetime.now()}.csv', index=False)
+print(devices_history)
+DataFrame(devices_history).to_csv(f'result/{datetime.datetime.now()}-server.csv', index=False)
