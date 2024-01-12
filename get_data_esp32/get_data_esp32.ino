@@ -21,7 +21,7 @@ void setup() {
         delay(1000);
         connect = Serial.read();
     } while(connect != 'd');
-    Serial.println('c');
+    Serial.println('m');
 }
 
 /**

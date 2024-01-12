@@ -31,28 +31,27 @@ def print_until_keyword(keyword, dev):
             print(f'({dev.port}):',msg, end='')
 
 def read_port(port):
-    while True:
-        try:
-            dev =  serial.Serial(None, BAUDRATE)
-            dev.port = port
-            dev.rts = False
-            dev.dtr = False
-            dev.open()
-            time.sleep(1)
-            dev.rts = False
-            dev.dtr = False
-            time.sleep(1)
-            dev.reset_input_buffer()
-            print_until_keyword('d', dev)
-            dev.write(b'd')
-            pos = dev.readline().decode()[:-2]
-            print(pos, port)
-            return (pos, dev)
-        except Exception as error:
-            print("An exception occurred: ", error) # An exception occurred: division by zero
+    try:
+        dev =  serial.Serial(None, BAUDRATE)
+        dev.port = port
+        dev.rts = False
+        dev.dtr = False
+        dev.open()
+        time.sleep(1)
+        dev.rts = False
+        dev.dtr = False
+        time.sleep(1)
+        dev.reset_input_buffer()
+        print_until_keyword('d', dev)
+        dev.write(b'd')
+        pos = dev.readline().decode()[:-2]
+        print(pos, port)
+        return (pos, dev)
+    except Exception as error:
+        print("An exception occurred: ", error)
+        return None
 
 def jpeg_buffer_to_rgb888(jpeg_buffer):
-    # Decode JPEG buffer
     img = Image.open(BytesIO(jpeg_buffer))
     img_array = np.array(img)
     img_rgb888 = Image.fromarray(img_array)

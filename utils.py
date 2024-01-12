@@ -20,6 +20,10 @@ def detect_and_crop_faces(img, target=(112, 96)):
 
     boxes, _ = mtcnn.detect(img)
 
+    if boxes is None:
+        print("The image have 0 faces!")
+        return False
+
     # print(boxes)
     for i, box in enumerate(boxes):
         box_w = box[2] - box[0]
@@ -62,11 +66,11 @@ class EarlyStopping:
         self.min_delta = min_delta
         self.counter = 0
         self.best_loss = float("inf")
-    def early_stop(self, val_loss) -> bool:
-        if self.best_loss - val_loss > self.min_delta:
-            self.best_loss = val_loss
+    def early_stop(self, loss) -> bool:
+        if self.best_loss - loss > self.min_delta:
+            self.best_loss = loss
             self.counter = 0
-        elif self.best_loss - val_loss < self.min_delta:
+        elif self.best_loss - loss < self.min_delta:
             self.counter += 1
             if self.counter >= self.patience:
                 return True

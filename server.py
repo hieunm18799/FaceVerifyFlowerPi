@@ -26,7 +26,7 @@ import timeit
 
 #________________________ VARIABLES ___________________________
 NUMBER_CLIENTS = 3
-CLASSES_NUM = 15
+CLASSES_NUM = 16
 THRESHOLD = 0.9
 ROUNDS = 10
 
@@ -133,11 +133,12 @@ class CustomStrategy(fl.server.strategy.FedAvg):
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
 
         for _, r in results:
-            devices_history[f'{r.metrics["id"]}-Train-Loss'].append(r.metrics["loss"])
-            devices_history[f'{r.metrics["id"]}-Train-Accuracy'].append(r.metrics["train_acc"])
+            devices_history[f'{r.metrics["id"]}-Val-Accuracy'].append(r.metrics["best_val_acc"])
             devices_history[f'{r.metrics["id"]}-Test-Accuracy'].append(r.metrics["test_acc"])
-            devices_history[f'{r.metrics["id"]}-Test-Precision'].append(r.metrics["precision"])
-            devices_history[f'{r.metrics["id"]}-Test-Recall'].append(r.metrics["recall"])
+            devices_history[f'{r.metrics["id"]}-Test-TN'].append(r.metrics["tn"])
+            devices_history[f'{r.metrics["id"]}-Test-FP'].append(r.metrics["fp"])
+            devices_history[f'{r.metrics["id"]}-Test-FN'].append(r.metrics["fn"])
+            devices_history[f'{r.metrics["id"]}-Test-TP'].append(r.metrics["tp"])
             devices_history[f'{r.metrics["id"]}-Epochs'].append(r.metrics["epochs"])
         cur_parameters = fl.common.parameters_to_ndarrays(aggregated_parameters)
         
@@ -161,15 +162,20 @@ class CustomStrategy(fl.server.strategy.FedAvg):
         # Call aggregate_evaluate from base class (FedAvg) to aggregate loss and metrics
         aggregated_loss, _ = super().aggregate_evaluate(server_round, results, failures)
 
-        for _, r in results:
-            devices_history[f'{r.metrics["id"]}-Aggregated-Test-Accuracy'].append(r.metrics["accuracy"])
-            devices_history[f'{r.metrics["id"]}-Aggregated-Test-Precision'].append(r.metrics["precision"])
-            devices_history[f'{r.metrics["id"]}-Aggregated-Test-Recall'].append(r.metrics["recall"])
         accuracies = [r.metrics["accuracy"] * r.num_examples for _, r in results]
         examples = [r.num_examples for _, r in results]
-
-
         aggregated_accuracy = sum(accuracies) / sum(examples)
+        devices_history['Avg-Aggregated-Test-Accuracy'].append(aggregated_accuracy)
+        for _, r in results:
+            devices_history[f'{r.metrics["id"]}-Aggregated-Test-Accuracy'].append(r.metrics["accuracy"])
+            devices_history[f'{r.metrics["id"]}-Aggregated-Test-TN'].append(r.metrics["tn"])
+            devices_history[f'{r.metrics["id"]}-Aggregated-Test-FP'].append(r.metrics["fp"])
+            devices_history[f'{r.metrics["id"]}-Aggregated-Test-FN'].append(r.metrics["fn"])
+            devices_history[f'{r.metrics["id"]}-Aggregated-Test-TP'].append(r.metrics["tp"])
+        temp_tp = sum([r.metrics['tp'] for _, r in results])
+        devices_history[f'Avg-Aggregated-Test-Precision'].append(temp_tp / (temp_tp + sum([r.metrics['fp'] for _, r in results])))
+        devices_history[f'Avg-Aggregated-Test-Recall'].append(temp_tp / (temp_tp + sum([r.metrics['fn'] for _, r in results])))
+
         print(f"Round {server_round} accuracy aggregated from client results: {aggregated_accuracy}")
         if aggregated_accuracy > global_accuracy:
             global_accuracy = aggregated_accuracy
@@ -243,7 +249,6 @@ strategy = CustomStrategy(
     min_fit_clients = NUMBER_CLIENTS,
     min_evaluate_clients = NUMBER_CLIENTS,
     min_available_clients = NUMBER_CLIENTS,
-    # eta=0.001,
     on_fit_config_fn = fit_config,
     on_evaluate_config_fn = evaluate_config,
     initial_parameters = fl.common.ndarrays_to_parameters([val.cpu().numpy() for _, val in model.state_dict().items()] + [val.cpu().numpy() for _, val in arc_loss.state_dict().items()]),
@@ -253,7 +258,7 @@ strategy = CustomStrategy(
 fl.server.start_server(
     server=FlServer(
         client_manager=SimpleClientManager(),
-        early_stopper=EarlyStopping(args.rounds // 2),
+        early_stopper=EarlyStopping(3),
         strategy=strategy,
     ),
     server_address="0.0.0.0:8080",
@@ -268,5 +273,5 @@ fl.server.start_server(
 )
 
 # Save the DataFrame to a CSV file
-print(devices_history)
+# print(devices_history)
 DataFrame(devices_history).to_csv(f'result/{datetime.datetime.now()}-server.csv', index=False)

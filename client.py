@@ -21,7 +21,7 @@ import logging
 import os
 import time
 from termcolor import colored
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import confusion_matrix
 import random
 from collections import defaultdict
 # import matplotlib.pyplot as plt
@@ -40,11 +40,10 @@ DATA_RATIO = {
     'test': 0.2,
 }
 BATCH_SIZE = 8
-CLASSES_NUM = 15
+CLASSES_NUM = 16
 SAVED_CLIENT = './client_saved'
 
 history = defaultdict(lambda: [])
-global_parameters = []
 #________________________ CLASS ___________________________
 class PairImagesDataset(Dataset):
     def __init__(self, original_dataset):
@@ -68,8 +67,6 @@ class PairImagesDataset(Dataset):
             idx2 = random.choice(positive_candidates)
         elif not is_positive_pair and negative_candidates:
             idx2 = random.choice(negative_candidates)
-        else:
-            return self.__getitem__(random.randint(0, self.__len__() - 1))
 
         img1, _ = self.original_dataset[idx1]
         img2, _ = self.original_dataset[idx2]
@@ -90,8 +87,8 @@ def load_datas():
     dataset = ConcatDataset([
         ImageFolder(root = args.face_dataset, transform = transform),
         ImageFolder(root = args.face_dataset, transform = augmentation_transform),
-        ImageFolder(root = args.face_dataset, transform = augmentation_transform),
-        ImageFolder(root = args.face_dataset, transform = augmentation_transform),
+        # ImageFolder(root = args.face_dataset, transform = augmentation_transform),
+        # ImageFolder(root = args.face_dataset, transform = augmentation_transform),
     ])
     # dataset = torch.utils.data.Subset(dataset, list(range(320)))
     
@@ -118,7 +115,7 @@ def load_datas():
 
 def check_task_folder():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    file_name = '_'.join(['Client', args.cid, timestamp])
+    file_name = '_'.join(['Client', timestamp, args.cid])
     if not os.path.exists('log'):
         os.makedirs('log')
 
@@ -153,10 +150,9 @@ def cal_acc(sim, true, threshold):
     sim, true = np.asarray(sim), np.asarray(true)
     predictions = [1 if score >= threshold else 0 for score in sim]
 
-    precision, recall, fscore, _ = precision_recall_fscore_support(true, predictions, average='binary', zero_division=0)
-    accuracy = accuracy_score(true, predictions)
+    tn, fp, fn, tp = map(int, confusion_matrix(true, predictions).ravel())
 
-    return accuracy, precision, recall, fscore
+    return (tp + tn) / (tn + fp + fn + tp), tn, fp, fn, tp
 
 def eval_performance(threshold, dataloader):
     start_time = time.time()
@@ -170,18 +166,17 @@ def eval_performance(threshold, dataloader):
     sim = np.array(sim)
     # print(sim)
 
-    accuracy, precision, recall, fscore = cal_acc(sim, result, threshold)
+    accuracy, tn, fp, fn, tp = cal_acc(sim, result, threshold)
 
-    print(colored("Test Acc: {:.4f} Precision: {:.4f} Recall: {:.4f} F1: {:.4f} Time: {:.4f}".format(accuracy, precision, recall, fscore, time.time() - start_time), "magenta"))
+    print(colored("Test Acc: {:.4f} TN: {} FP: {} FN: {} TP: {} Time: {:.4f}".format(accuracy, tn, fp, fn, tp, time.time() - start_time), "magenta"))
     print(colored("-----------------------------------------", "yellow"))
 
-    log("Test Acc: {:.4f} Precision: {:.4f} Recall: {:.4f} F1: {:.4f} Time: {:.4f}".format(accuracy, precision, recall, fscore, time.time() - start_time))
+    log("Test Acc: {:.4f} TN: {} FP: {} FN: {} TP: {} Time: {:.4f}".format(accuracy, tn, fp, fn, tp, time.time() - start_time))
     log("-----------------------------------------")
-    return accuracy, precision, recall
+    return accuracy, tn, fp, fn, tp
 
 # def train_model(ray_config, threshold, epochs):
 def train_model(lr, threshold, epochs):
-    global global_parameters
     optimizer = SGD([
     {'params': prelu_params_list, 'weight_decay': 0.0},
     {'params': default_params_list, 'weight_decay': 4e-5},
@@ -192,11 +187,12 @@ def train_model(lr, threshold, epochs):
     # optimizer = Adam([
     #     {'params': model.parameters()},
     #     {'params': arc_loss.weight}],
-    #     lr=0.01)
+    #     lr=lr)
     
     best_val_acc = 0.0
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=1, factor=0.1, verbose=True)
-    early_stopping = EarlyStopping(epochs // 2)
+    best_parameters = []
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=1, factor=0.1, verbose=True, threshold=-1e-6)
+    early_stopping = EarlyStopping(3)
 
     for epoch in range(epochs):
         print(colored("Epoch {}/{}".format(epoch + 1, epochs), "yellow"))
@@ -204,8 +200,7 @@ def train_model(lr, threshold, epochs):
 
         start_time = time.time()
         train_loss = 0.0
-        train_acc = 0
-        epoch_steps = 0
+        train_acc = 0.0
         model.train()
         for _, batch_datas in enumerate(trainloader):
 
@@ -224,31 +219,33 @@ def train_model(lr, threshold, epochs):
             optimizer.step()
 
             train_loss += loss.item()
-            epoch_steps += 1
 
-        
-        train_loss = train_loss / (epoch_steps)
+        train_loss = train_loss / (num_examples['trainset'] / len(trainloader))
         train_acc = train_acc / num_examples['trainset']
         print(colored("Train Loss: {:.4f} Acc: {:.4f} Time: {:.4f}".format(train_loss, train_acc, time.time() - start_time), "magenta"))
-        print(colored("Iterations per epoch: {}".format(epoch_steps), "magenta"))
+        print(colored("Iterations per epoch: {}".format(len(trainloader)), "magenta"))
         log("Train Loss: {:.4f} Acc: {:.4f} Time: {:.4f}".format(train_loss, train_acc, time.time() - start_time))
 
-        val_acc, precision, recall = eval_performance(threshold, valloader)
+        #Validate model
+        val_acc, tn, fp, fn, tp = eval_performance(threshold, valloader)
 
         if val_acc >= best_val_acc:
             best_val_acc = val_acc
-            global_parameters = [val.cpu().numpy() for _, val in model.state_dict().items()] + [val.cpu().numpy() for _, val in arc_loss.state_dict().items()]
-        history[f'Train_Loss'].append(train_loss)
-        history[f'Train_Acc'].append(train_acc)
-        history[f'Val_Acc'].append(val_acc)
-        history[f'Val_Precision'].append(precision)
-        history[f'Val_Recall'].append(recall)
+            best_parameters = [val.cpu().numpy() for _, val in model.state_dict().items()] + [val.cpu().numpy() for _, val in arc_loss.state_dict().items()]
+
+        history[f'{args.cid}_Train_Loss'].append(train_loss)
+        history[f'{args.cid}_Train_Acc'].append(train_acc)
+        history[f'{args.cid}_Val_Acc'].append(val_acc)
+        history[f'{args.cid}_Val_TN'].append(tn)
+        history[f'{args.cid}_Val_FP'].append(fp)
+        history[f'{args.cid}_Val_FN'].append(fn)
+        history[f'{args.cid}_Val_TP'].append(tp)
 
         scheduler.step(1 - val_acc)
         if early_stopping.early_stop(1 - val_acc):
             break
 
-    return train_loss, train_acc
+    return best_val_acc, best_parameters
 
 #________________________ START ___________________________
 if __name__ == "__main__":
@@ -330,30 +327,32 @@ if __name__ == "__main__":
             if config['best_model_saved']:
                 save_model(model, SAVED_CLIENT + '/best_model.pth')
 
-            loss, train_accuracy = train_model(lr=config["lr"], epochs=config["local_epochs"], threshold=config["threshold"])
-            test_accuracy, precision, recall = eval_performance(config["threshold"], testloader)
+            best_val_acc, best_parameters = train_model(lr=config["lr"], epochs=config["local_epochs"], threshold=config["threshold"])
+            self.set_parameters(best_parameters)
+            test_accuracy, tn, fp, fn, tp = eval_performance(config["threshold"], testloader)
             results = {
                 'id': args.cid,
-                "loss": loss,
-                "train_acc": train_accuracy,
+                "best_val_acc": best_val_acc,
                 "test_acc": test_accuracy,
-                "precision": precision,
-                "recall": recall,
-                "epochs": len(history['Train_Acc']),
+                "tn": tn,
+                "fp": fp,
+                "fn": fn,
+                "tp": tp,
+                "epochs": len(history[f'{args.cid}_Train_Acc']),
             }
             # print([val.cpu().numpy() for _, val in model.state_dict().items()])
 
-            return global_parameters, num_examples["trainset"], results
+            return best_parameters, num_examples["trainset"], results
             # return [val.cpu().numpy() for _, val in model.state_dict().items()], num_examples["trainset"], results
 
         def evaluate(self, parameters, config):
             self.set_parameters(parameters)
             threshold: float = config["threshold"]
-            accuracy, precision, recall = eval_performance(threshold, testloader)
-            return 1 - accuracy, num_examples["testset"], {'id': args.cid, "accuracy": float(accuracy), 'precision': float(precision),  'recall': float(recall)}
+            accuracy, tn, fp, fn, tp = eval_performance(threshold, testloader)
+            return 1 - accuracy, num_examples["testset"], {'id': args.cid, "accuracy": float(accuracy), 'tn': float(tn),  'fp': float(fp), 'fn': float(fn), 'tp': float(tp)}
         
     fl.client.start_numpy_client(server_address=args.server_address, client=FLWRClient())
 
     # Save the DataFrame to a CSV file
-    print(history)
+    # print(history)
     DataFrame(history).to_csv(f'{SAVED_CLIENT}/{datetime.datetime.now()}-client-{args.cid}.csv', index=False)

@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from torch.nn import Parameter
 import math
 
-
 class ArcMarginProduct(nn.Module):
     def __init__(self,
                  feature_dim,
@@ -21,24 +20,16 @@ class ArcMarginProduct(nn.Module):
 
         self.cos_m = math.cos(margin)
         self.sin_m = math.sin(margin)
-        self.threshold = math.cos(self.margin) * (-1)
-        self.mm = math.sin(margin) * margin
 
-    def forward(self, input, label):
-        input_norm = torch.sqrt(torch.sum(torch.square(input), dim=1, keepdim=True))
-        input = torch.divide(input, input_norm)
+    def forward(self, inputs, labels):
+        inputs_norm = torch.sqrt(torch.sum(torch.square(inputs), dim=1, keepdim=True))
+        inputs = torch.divide(inputs, inputs_norm)
 
         weight_norm = torch.sqrt(torch.sum(torch.square(self.weight), dim=0, keepdim=True))
         weight = torch.divide(self.weight, weight_norm)
-        cos = torch.matmul(input, weight)
+        cos = torch.matmul(inputs, weight)
 
-        sin = torch.sqrt(1.0 - torch.square(cos) + 1e-6)
-        phi = cos * self.cos_m - sin * self.sin_m
-        mask = (cos > self.threshold).float()
-        phi = torch.multiply(mask, phi) + torch.multiply((1.0 - mask), cos - self.mm)
+        for index, label in enumerate(labels):
+            cos[index][label] = cos[index][label] *self.cos_m - self.sin_m * math.sqrt(1.0 - cos[index][label]**2)
 
-        one_hot = torch.nn.functional.one_hot(label, self.class_dim)
-        one_hot = torch.squeeze(one_hot, dim=1)
-        output = torch.multiply(one_hot, phi) + torch.multiply((1.0 - one_hot), cos)
-        output = output * self.scale
-        return output
+        return cos * self.scale
