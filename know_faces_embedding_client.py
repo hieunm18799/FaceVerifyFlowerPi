@@ -10,8 +10,8 @@ from typing import OrderedDict
 import argparse
 
 #________________________ VARIABLES ___________________________
-FACE_DATASET = "/face_dataset"
-SAVED_FILE = "/know_faces_embedding.pth"
+FACE_DATASET = "./face_dataset/"
+SAVED_FILE = "know_faces_embedding.pth"
 #________________________ START ___________________________
 if __name__ =="__main__":
     parser = argparse.ArgumentParser(description="Know-faces embedding")
