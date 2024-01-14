@@ -106,10 +106,7 @@ if __name__ == "__main__":
 
     for person_id, known_embedding in faces_embedding.items():
         sim = cal_similarity(embedding, known_embedding)
-        # sim = 0
-        # for known_embedding in known_embeddings:
-        #     sim = cal_similarity(embedding, known_embedding)
-        #     print(sim)
+        # print(sim)
 
         if sim > min_sim:
             min_sim = sim

@@ -26,9 +26,10 @@ import timeit
 
 #________________________ VARIABLES ___________________________
 NUMBER_CLIENTS = 3
-CLASSES_NUM = 16
+CLASSES_NUM = 36
 THRESHOLD = 0.9
 ROUNDS = 10
+BEGIN_LR = 0.0005
 
 global_accuracy = 0.0
 devices_history = defaultdict(lambda: [])
@@ -196,7 +197,7 @@ def fit_config(server_round: int):
         # "local_epochs": 3 if global_accuracy > 0.8 else 5,
         'best_model_saved': best_model_saved,
         "local_epochs": 5,
-        "lr": 0.0001 if global_accuracy > 0.8 else 0.001,
+        "lr": BEGIN_LR // 10 if global_accuracy > 0.8 else BEGIN_LR,
         "threshold": args.threshold,
         "server_round": server_round,
     }

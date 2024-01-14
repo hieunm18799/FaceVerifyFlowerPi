@@ -111,3 +111,4 @@ if __name__ == '__main__':
     while True:
         label = read_label('Label: ')
         getDatas(label, dev)
+        print('done')

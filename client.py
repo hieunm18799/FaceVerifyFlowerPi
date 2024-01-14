@@ -40,7 +40,7 @@ DATA_RATIO = {
     'test': 0.2,
 }
 BATCH_SIZE = 8
-CLASSES_NUM = 16
+CLASSES_NUM = 36
 SAVED_CLIENT = './client_saved'
 
 history = defaultdict(lambda: [])
@@ -86,7 +86,7 @@ def load_datas():
     ])
     dataset = ConcatDataset([
         ImageFolder(root = args.face_dataset, transform = transform),
-        ImageFolder(root = args.face_dataset, transform = augmentation_transform),
+        # ImageFolder(root = args.face_dataset, transform = augmentation_transform),
         # ImageFolder(root = args.face_dataset, transform = augmentation_transform),
         # ImageFolder(root = args.face_dataset, transform = augmentation_transform),
     ])
@@ -177,17 +177,17 @@ def eval_performance(threshold, dataloader):
 
 # def train_model(ray_config, threshold, epochs):
 def train_model(lr, threshold, epochs):
-    optimizer = SGD([
-    {'params': prelu_params_list, 'weight_decay': 0.0},
-    {'params': default_params_list, 'weight_decay': 4e-5},
-    {'params': model.layers[-1].parameters(), 'weight_decay': 4e-4},
-    {'params': model.layers[-2].parameters(), 'weight_decay': 4e-4},
-    {'params': arc_loss.weight, 'weight_decay': 4e-4}],
-    lr=lr, momentum=0.9, nesterov=True)
-    # optimizer = Adam([
-    #     {'params': model.parameters()},
-    #     {'params': arc_loss.weight}],
-    #     lr=lr)
+    # optimizer = SGD([
+    # {'params': prelu_params_list, 'weight_decay': 0.0},
+    # {'params': default_params_list, 'weight_decay': 4e-5},
+    # {'params': model.layers[-1].parameters(), 'weight_decay': 4e-4},
+    # {'params': model.layers[-2].parameters(), 'weight_decay': 4e-4},
+    # {'params': arc_loss.weight, 'weight_decay': 4e-4}],
+    # lr=lr, momentum=0.9, nesterov=True)
+    optimizer = Adam([
+        {'params': model.parameters()},
+        {'params': arc_loss.weight}],
+        lr=lr)
     
     best_val_acc = 0.0
     best_parameters = []
