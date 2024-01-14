@@ -41,7 +41,8 @@ DATA_RATIO = {
 }
 BATCH_SIZE = 8
 CLASSES_NUM = 36
-SAVED_CLIENT = './client_saved'
+SAVED_CLIENT = './client_saved/'
+FACE_DATASET = "./face_dataset/"
 
 history = defaultdict(lambda: [])
 #________________________ CLASS ___________________________
@@ -259,7 +260,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--face_dataset",
         type=str,
-        default="/face_dataset",
+        default=FACE_DATASET,
         help=f"Path to data's directory!",
     )
     parser.add_argument(

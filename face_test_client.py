@@ -95,12 +95,12 @@ if __name__ == "__main__":
     # image = jpeg_buffer_to_rgb888(buf)
     # image = detect_and_crop_faces(image)
 
-    image = Image.open('./face_dataset_split/l/2/person02243+0-45.jpg')
+    image = Image.open('./face_dataset/20176752/7.png')
 
     embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
     id = None
-    min_sim = 0.9
+    max_sim = 0.9
 
     # print(faces_embedding)
 
@@ -108,9 +108,9 @@ if __name__ == "__main__":
         sim = cal_similarity(embedding, known_embedding)
         # print(sim)
 
-        if sim > min_sim:
-            min_sim = sim
+        if sim > max_sim:
+            max_sim = sim
             id = person_id
 
-    print(min_sim)
-    print(id)
+    print(f'Score: {max_sim}')
+    print(f'ID: {id}')

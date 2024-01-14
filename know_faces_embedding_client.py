@@ -4,13 +4,12 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 
 from model_PTH import MobileFaceNet
-from client import SAVED_CLIENT, BATCH_SIZE
+from client import SAVED_CLIENT, BATCH_SIZE, FACE_DATASET
 
 from typing import OrderedDict
 import argparse
 
 #________________________ VARIABLES ___________________________
-FACE_DATASET = "./face_dataset/"
 SAVED_FILE = "know_faces_embedding.pth"
 #________________________ START ___________________________
 if __name__ =="__main__":
