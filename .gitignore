@@ -18,3 +18,4 @@
 # Ignore custom
 test.py
 data_split.py
+.profile
