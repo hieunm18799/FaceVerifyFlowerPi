@@ -4,7 +4,9 @@ import argparse
 import time
 import re
 
-HOSTS = ['raspberrypi-left', 'raspberrypi-mid', 'raspberrypi-right']
+HOSTNAME_LEFT = 'raspberrypi-left'
+HOSTNAME_MID = 'raspberrypi-mid'
+HOSTNAME_RIGHT = 'raspberrypi-right'
 # HOSTS = ['hieu-Inspiron-5570']
 USERNAME = 'pi'
 PASSWORD = 'raspberrypi'
@@ -19,6 +21,7 @@ FACE_TEST_COMMAND = f'python3 face_test_client.py'
 #____________________________________ VARIABLES ___________________________
 channels = []
 threads = []
+hosts = []
 
 #________________________ FUNCTION ___________________________
 def extract_numeric_values(output):
@@ -28,14 +31,14 @@ def extract_numeric_values(output):
 
     return res
 
-def execute_code_pi(host: str, channel: paramiko.Channel, code: str, to_output: list[str], need_print: bool):
+def execute_code_pi(host: str, hostname: str, channel: paramiko.Channel, code: str, to_output: list[str], need_print: bool):
     try:
         channel.send(code)
 
         output = ""
         while True:
             output += channel.recv(1024).decode('utf-8')
-            if f'{USERNAME}@{host}' in output:
+            if f'{USERNAME}@{hostname}' in output:
                 break
             time.sleep(1)
 
@@ -50,15 +53,33 @@ def execute_code_pi(host: str, channel: paramiko.Channel, code: str, to_output: 
 
 def execute_code_pis(code: str, to_output: list[str] = [], need_print: bool = False):
     threads.clear()
-    for host, _, channel in channels:
-        thread = threading.Thread(target=execute_code_pi, args=(host, channel, code, to_output, need_print))
+    for _, hostname, _, channel in channels:
+        thread = threading.Thread(target=execute_code_pi, args=(host, hostname, channel, code, to_output, need_print))
         thread.daemon = True
         thread.start()
         threads.append(thread)
-    # for thread in threads: thread.join()
+    for thread in threads: thread.join()
 #________________________ START ___________________________
 if __name__ =="__main__":
-    parser = argparse.ArgumentParser(description="Know-faces embedding")
+    parser = argparse.ArgumentParser(description="SSH face verify!")
+    parser.add_argument(
+        "--pi_left",
+        type=str,
+        default=HOSTNAME_LEFT + '.local',
+        help=f"The Raspberry Pi left's IP address or local hostname! (deafault {HOSTNAME_LEFT}.local)",
+    )
+    parser.add_argument(
+        "--pi_mid",
+        type=str,
+        default=HOSTNAME_MID + '.local',
+        help=f"The Raspberry Pi mid's IP address or local hostname! (deafault {HOSTNAME_MID}.local)",
+    )
+    parser.add_argument(
+        "--pi_right",
+        type=str,
+        default=HOSTNAME_RIGHT + '.local',
+        help=f"The Raspberry Pi right's IP address or local hostname! (deafault {HOSTNAME_RIGHT}.local)",
+    )
     parser.add_argument(
         "--know_faces",
         type=bool,
@@ -68,19 +89,25 @@ if __name__ =="__main__":
     )
     args = parser.parse_args()
 
+    hosts.extend([(args.pi_left, HOSTNAME_LEFT), (args.pi_mid, HOSTNAME_MID), (args.pi_right, HOSTNAME_RIGHT)])
+    print(hosts)
     try:
-        for host in HOSTS:
+        for host, hostname in hosts:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(host + '.local', username=USERNAME, password=PASSWORD)
-            channels.append((host, ssh, ssh.invoke_shell()))
+            ssh.connect(host, username=USERNAME, password=PASSWORD)
+            channels.append((host, hostname, ssh, ssh.invoke_shell()))
 
         execute_code_pis('')
-        execute_code_pis(PYTHON_FOLDER_SOURCE + '\n')
+        execute_code_pis(PYTHON_FOLDER_SOURCE + '\n', need_print=True)
 
-        if args.know_faces is False: execute_code_pis(FACE_EMBEDDING_COMMAND + '\n')
+        if args.know_faces is False: execute_code_pis(FACE_EMBEDDING_COMMAND + '\n', need_print=True)
+
+        if len(channels) != 3:
+            exit(f'Connected fail to some Pi!')
 
         while True:
+            time.sleep(2)
             outputs = []
             res = {
                 'Score': [],
@@ -93,7 +120,7 @@ if __name__ =="__main__":
                     res[key].append(val)
 
             print(res)
-            if len(res['ID']) != len(HOSTS):
+            if len(res['ID']) != len(hosts):
                 print('Some camera cannot verify face!')
                 continue
             if len(set(res['ID'])) != 1:
@@ -105,6 +132,6 @@ if __name__ =="__main__":
     except KeyboardInterrupt:
         print('Ending program!')
         for thread in threads: thread.join()
-        for _, ssh, channel in channels:
+        for _, _, ssh, channel in channels:
             channel.close()
             ssh.close()

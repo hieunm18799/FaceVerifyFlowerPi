@@ -88,14 +88,14 @@ if __name__ == "__main__":
     ])
 
     # Get face from esp32's image
-    # _, dev = read_port(comports()[0].device)
-    # dev.write(b's')
-    # len = int(dev.readline().decode()[:-2])
-    # buf = np.frombuffer(dev.read(len), dtype=np.uint8)
-    # image = jpeg_buffer_to_rgb888(buf)
-    # image = detect_and_crop_faces(image)
+    _, dev = read_port(comports()[0].device)
+    dev.write(b's')
+    len = int(dev.readline().decode()[:-2])
+    buf = np.frombuffer(dev.read(len), dtype=np.uint8)
+    image = jpeg_buffer_to_rgb888(buf)
+    image = detect_and_crop_faces(image)
 
-    image = Image.open('./face_dataset/20176752/7.png')
+    # image = Image.open('./face_dataset/20176752/7.png')
 
     embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
