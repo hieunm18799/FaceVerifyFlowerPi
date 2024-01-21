@@ -73,7 +73,7 @@ def on_request(client: mqtt.Client, userdata, message):
     # image = jpeg_buffer_to_rgb888(buf)
     # image = detect_and_crop_faces(image)
 
-    image = Image.open('./face_dataset/m/20176752/7.png')
+    image = Image.open('./face_dataset/20176752/7.png')
 
     embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
