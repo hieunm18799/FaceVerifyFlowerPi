@@ -11,12 +11,16 @@ from io import BytesIO
 from model_PTH import MobileFaceNet
 from utils import detect_and_crop_faces, cal_similarity
 
-import time
 import argparse
 import pickle
+import paho.mqtt.client as mqtt
+import json
+import socket
+import time
 
 from typing import OrderedDict
 from client import SAVED_CLIENT
+from server import THRESHOLD
 from know_faces_embedding_client import SAVED_FILE
 
 #________________________ VARIABLES ___________________________
@@ -59,9 +63,40 @@ def jpeg_buffer_to_rgb888(jpeg_buffer):
 
     return img_rgb888
 
+def on_request(client: mqtt.Client, userdata, message):
+    pi_id = message.payload.decode("utf-8")
+    # Get face from esp32's image
+    # _, dev = read_port(comports()[0].device)
+    # dev.write(b's')
+    # len = int(dev.readline().decode()[:-2])
+    # buf = np.frombuffer(dev.read(len), dtype=np.uint8)
+    # image = jpeg_buffer_to_rgb888(buf)
+    # image = detect_and_crop_faces(image)
+
+    image = Image.open('./face_dataset/m/20176752/7.png')
+
+    embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
+
+    id = None
+    max_sim = THRESHOLD
+
+    for person_id, known_embedding in faces_embedding.items():
+        sim = cal_similarity(embedding, known_embedding)
+        # print(sim)
+
+        if sim > max_sim:
+            max_sim = sim
+            id = person_id
+
+    # print(f'Score: {max_sim}')
+    # print(f'ID: {id}')
+
+    response_topic = f"raspberry_pi_response/face_recognize"
+    client.publish(response_topic, payload=json.dumps({'pi_id': pi_id, 'data': {'score': float(max_sim), 'id': id}}))
+
 #________________________ START ___________________________
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Verify face")
+if __name__ =="__main__":
+    parser = argparse.ArgumentParser(description="MQTT face recognize client!")
     parser.add_argument(
         "--saved_file",
         type=str,
@@ -90,34 +125,14 @@ if __name__ == "__main__":
         transforms.Normalize(mean=[127.5, 127.5, 127.5], std=[128.0, 128.0, 128.0]),
     ])
 
-    while True:
-        cmd = input('Face_verify_input:')
-        if cmd == 'exit':
-            break
-        # Get face from esp32's image
-        # _, dev = read_port(comports()[0].device)
-        # dev.write(b's')
-        # len = int(dev.readline().decode()[:-2])
-        # buf = np.frombuffer(dev.read(len), dtype=np.uint8)
-        # image = jpeg_buffer_to_rgb888(buf)
-        # image = detect_and_crop_faces(image)
+    print(socket.gethostname())
 
-        image = Image.open('./face_dataset/m/20176752/7.png')
+    client = mqtt.Client(userdata={"hostname": socket.gethostname()})
+    client.on_message = on_request
+    client.connect("localhost", 1883)
 
-        embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
+    # Subscribe to the request topic
+    client.subscribe('raspberry_pi_request/face_recognize')
 
-        id = None
-        max_sim = 0.9
-        
-        # print(faces_embedding)
-
-        for person_id, known_embedding in faces_embedding.items():
-            sim = cal_similarity(embedding, known_embedding)
-            # print(sim)
-
-            if sim > max_sim:
-                max_sim = sim
-                id = person_id
-
-        print(f'Score: {max_sim}')
-        print(f'ID: {id}')
+    # Loop to handle incoming requests
+    client.loop_forever()

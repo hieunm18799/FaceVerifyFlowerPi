@@ -210,69 +210,70 @@ def evaluate_config(server_round: int):
     return config
 
 #________________________ START ___________________________
-if not os.path.exists('result'):
-    os.makedirs('result')
-if not os.path.exists('saved_models'):
-    os.makedirs('saved_models')
+if __name__ == "__main__":
+    if not os.path.exists('result'):
+        os.makedirs('result')
+    if not os.path.exists('saved_models'):
+        os.makedirs('saved_models')
 
-parser = argparse.ArgumentParser(description="Flower Embedded devices")
-parser.add_argument(
-    "--rounds",
-    type=int,
-    default=ROUNDS,
-    help=f"The number of rounds! (deafault 10)",
-)
-parser.add_argument(
-    "--threshold",
-    type=float,
-    default=THRESHOLD,
-    help=f"Set the threshold! (deafault 0.9)",
-)
-args = parser.parse_args()
+    parser = argparse.ArgumentParser(description="Flower Embedded devices")
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        default=ROUNDS,
+        help=f"The number of rounds! (deafault 10)",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=THRESHOLD,
+        help=f"Set the threshold! (deafault 0.9)",
+    )
+    args = parser.parse_args()
 
-device = torch.device('cpu')
-model = MobileFaceNet().to(device)
-arc_loss = ArcMarginProduct(128, CLASSES_NUM, 0.5, 64).to(device)
+    device = torch.device('cpu')
+    model = MobileFaceNet().to(device)
+    arc_loss = ArcMarginProduct(128, CLASSES_NUM, 0.5, 64).to(device)
 
-# model_path = './model_PTH/best_model.pth'
-# state_dict = torch.load(model_path, map_location='cpu')
-# new_state_dict = OrderedDict()
-# for k, v in state_dict.items():
-#     new_state_dict[k.replace("module.", "")] = v
-# model.load_state_dict(new_state_dict)
-# summary(model, INPUT_SHAPE)
+    # model_path = './model_PTH/best_model.pth'
+    # state_dict = torch.load(model_path, map_location='cpu')
+    # new_state_dict = OrderedDict()
+    # for k, v in state_dict.items():
+    #     new_state_dict[k.replace("module.", "")] = v
+    # model.load_state_dict(new_state_dict)
+    # summary(model, INPUT_SHAPE)
 
-#________________________ FEDERATED LEARNING ___________________________
-# Create strategy
-strategy = CustomStrategy(
-    fraction_fit = 1.0,
-    fraction_evaluate = 1.0,
-    min_fit_clients = NUMBER_CLIENTS,
-    min_evaluate_clients = NUMBER_CLIENTS,
-    min_available_clients = NUMBER_CLIENTS,
-    on_fit_config_fn = fit_config,
-    on_evaluate_config_fn = evaluate_config,
-    initial_parameters = fl.common.ndarrays_to_parameters([val.cpu().numpy() for _, val in model.state_dict().items()] + [val.cpu().numpy() for _, val in arc_loss.state_dict().items()]),
-    # initial_parameters = fl.common.ndarrays_to_parameters([val.cpu().numpy() for _, val in model.state_dict().items()]),
-)
+    #________________________ FEDERATED LEARNING ___________________________
+    # Create strategy
+    strategy = CustomStrategy(
+        fraction_fit = 1.0,
+        fraction_evaluate = 1.0,
+        min_fit_clients = NUMBER_CLIENTS,
+        min_evaluate_clients = NUMBER_CLIENTS,
+        min_available_clients = NUMBER_CLIENTS,
+        on_fit_config_fn = fit_config,
+        on_evaluate_config_fn = evaluate_config,
+        initial_parameters = fl.common.ndarrays_to_parameters([val.cpu().numpy() for _, val in model.state_dict().items()] + [val.cpu().numpy() for _, val in arc_loss.state_dict().items()]),
+        # initial_parameters = fl.common.ndarrays_to_parameters([val.cpu().numpy() for _, val in model.state_dict().items()]),
+    )
 
-fl.server.start_server(
-    server=FlServer(
-        client_manager=SimpleClientManager(),
-        early_stopper=EarlyStopping(3),
+    fl.server.start_server(
+        server=FlServer(
+            client_manager=SimpleClientManager(),
+            early_stopper=EarlyStopping(3),
+            strategy=strategy,
+        ),
+        server_address="0.0.0.0:8080",
+        config=fl.server.ServerConfig(num_rounds = args.rounds),
         strategy=strategy,
-    ),
-    server_address="0.0.0.0:8080",
-    config=fl.server.ServerConfig(num_rounds = args.rounds),
-    strategy=strategy,
-# Start Flower server (SSL-enabled) for four rounds of federated learning
-    # certificates=(
-    #     Path(".cache/certificates/ca.crt").read_bytes(),
-    #     Path(".cache/certificates/server.pem").read_bytes(),
-    #     Path(".cache/certificates/server.key").read_bytes(),
-    # ),
-)
+    # Start Flower server (SSL-enabled) for four rounds of federated learning
+        # certificates=(
+        #     Path(".cache/certificates/ca.crt").read_bytes(),
+        #     Path(".cache/certificates/server.pem").read_bytes(),
+        #     Path(".cache/certificates/server.key").read_bytes(),
+        # ),
+    )
 
-# Save the DataFrame to a CSV file
-# print(devices_history)
-DataFrame(devices_history).to_csv(f'result/{datetime.datetime.now()}-server.csv', index=False)
+    # Save the DataFrame to a CSV file
+    # print(devices_history)
+    DataFrame(devices_history).to_csv(f'result/{datetime.datetime.now()}-server.csv', index=False)
