@@ -221,7 +221,7 @@ def train_model(lr, threshold, epochs):
 
             train_loss += loss.item()
 
-        train_loss = train_loss / (num_examples['trainset'] / len(trainloader))
+        train_loss = train_loss / len(trainloader)
         train_acc = train_acc / num_examples['trainset']
         print(colored("Train Loss: {:.4f} Acc: {:.4f} Time: {:.4f}".format(train_loss, train_acc, time.time() - start_time), "magenta"))
         print(colored("Iterations per epoch: {}".format(len(trainloader)), "magenta"))

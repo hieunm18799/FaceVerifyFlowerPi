@@ -46,16 +46,15 @@ def read_port(port):
         print("An exception occurred: ", error) # An exception occurred: division by zero
         return None
 
-def read_label(msg):
+def read_string(msg):
     while True:
         try:
             label = input(msg)
-            if label is None or len(label) == 0:
-                exit()
-            return label
+            if label is not None or len(label) != 0:
+                return label
         except:
             print(f"ERROR: Not a string ({label})")
-            exit()
+            continue
             
 
 def jpeg_buffer_to_rgb888(jpeg_buffer):
@@ -102,13 +101,12 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    devs = comports()
-    if len(devs) != 1: exit("No device found or more than 1 device!")
-    
-    dev = read_port(devs[0].device)
-    if dev is None: exit('Can\'t connect to serial port!')
+    # dev = read_port(comports()[0].device)
+    # if dev is None: exit('Can\'t connect to serial port!')
 
     while True:
-        label = read_label('Label: ')
-        getDatas(label, dev)
+        label = read_string('Label: ')
+        # getDatas(label, dev)
         print('done')
+        if label == 'exit':
+            break

@@ -45,8 +45,8 @@ bool InitCamera() {
   }
 
   sensor_t *s = esp_camera_sensor_get();
-  // s->set_hmirror(s, 1);        // 0 = disable , 1 = enable
-  // s->set_vflip(s, 1);
+  s->set_hmirror(s, 1);        // 0 = disable , 1 = enable
+  s->set_vflip(s, 1);
   // s->set_gain_ctrl(s, 1);     // auto gain on
   // s->set_exposure_ctrl(s, 1); // auto exposure on
   // s->set_awb_gain(s, 1);      // Auto White Balance enable (0 or 1)

@@ -9,8 +9,10 @@ from client import SAVED_CLIENT, BATCH_SIZE, FACE_DATASET
 from typing import OrderedDict
 import argparse
 
+import pickle
+
 #________________________ VARIABLES ___________________________
-SAVED_FILE = "know_faces_embedding.pth"
+SAVED_FILE = "know_faces_embedding.pickle"
 #________________________ START ___________________________
 if __name__ =="__main__":
     parser = argparse.ArgumentParser(description="Know-faces embedding")
@@ -18,13 +20,13 @@ if __name__ =="__main__":
         "--face_dataset",
         type=str,
         default=FACE_DATASET,
-        help=f"Path to data's directory! (default: /face_dataset)",
+        help=f"Path to data's directory! (default: {FACE_DATASET})",
     )
     parser.add_argument(
         "--saved_file",
         type=str,
         default=SAVED_FILE,
-        help="Location of saved embedding file! (default: know_faces_embedding.pth)",
+        help=f"Location of saved embedding file! (default: {SAVED_FILE})",
     )
     args = parser.parse_args()
 
@@ -64,4 +66,6 @@ if __name__ =="__main__":
         avg_embedding = torch.mean(torch.vstack([torch.tensor(e) for e in embeddings_list]), dim=0)
         known_faces_embeddings[person_id] = avg_embedding
 
-    torch.save(known_faces_embeddings, SAVED_CLIENT + args.saved_file)
+    # torch.save(known_faces_embeddings, SAVED_CLIENT + args.saved_file)
+    with open(SAVED_CLIENT + args.saved_file, 'wb') as handle:
+        pickle.dump(known_faces_embeddings, handle, protocol=pickle.HIGHEST_PROTOCOL)

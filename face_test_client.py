@@ -13,6 +13,7 @@ from utils import detect_and_crop_faces, cal_similarity
 
 import time
 import argparse
+import pickle
 
 from typing import OrderedDict
 from client import SAVED_CLIENT
@@ -80,37 +81,43 @@ if __name__ == "__main__":
     model.eval()
 
     # Loading the saved embeddings
-    faces_embedding = torch.load(SAVED_CLIENT + args.saved_file)
+    # faces_embedding = torch.load(SAVED_CLIENT + args.saved_file)
+    with open(SAVED_CLIENT + args.saved_file, 'rb') as handle:
+        faces_embedding = pickle.load(handle)
 
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=[127.5, 127.5, 127.5], std=[128.0, 128.0, 128.0]),
     ])
 
-    # Get face from esp32's image
-    _, dev = read_port(comports()[0].device)
-    dev.write(b's')
-    len = int(dev.readline().decode()[:-2])
-    buf = np.frombuffer(dev.read(len), dtype=np.uint8)
-    image = jpeg_buffer_to_rgb888(buf)
-    image = detect_and_crop_faces(image)
+    while True:
+        cmd = input('Face_verify_input:')
+        if cmd == 'exit':
+            break
+        # Get face from esp32's image
+        # _, dev = read_port(comports()[0].device)
+        # dev.write(b's')
+        # len = int(dev.readline().decode()[:-2])
+        # buf = np.frombuffer(dev.read(len), dtype=np.uint8)
+        # image = jpeg_buffer_to_rgb888(buf)
+        # image = detect_and_crop_faces(image)
 
-    # image = Image.open('./face_dataset/20176752/7.png')
+        image = Image.open('./face_dataset/m/20176752/7.png')
 
-    embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
+        embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
-    id = None
-    max_sim = 0.9
+        id = None
+        max_sim = 0.9
 
-    # print(faces_embedding)
+        # print(faces_embedding)
 
-    for person_id, known_embedding in faces_embedding.items():
-        sim = cal_similarity(embedding, known_embedding)
-        # print(sim)
+        for person_id, known_embedding in faces_embedding.items():
+            sim = cal_similarity(embedding, known_embedding)
+            # print(sim)
 
-        if sim > max_sim:
-            max_sim = sim
-            id = person_id
+            if sim > max_sim:
+                max_sim = sim
+                id = person_id
 
-    print(f'Score: {max_sim}')
-    print(f'ID: {id}')
+        print(f'Score: {max_sim}')
+        print(f'ID: {id}')
