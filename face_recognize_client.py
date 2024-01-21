@@ -17,6 +17,7 @@ import paho.mqtt.client as mqtt
 import json
 import socket
 import time
+import base64
 
 from typing import OrderedDict
 from client import SAVED_CLIENT
@@ -82,17 +83,14 @@ def on_request(client: mqtt.Client, userdata, message):
 
     for person_id, known_embedding in faces_embedding.items():
         sim = cal_similarity(embedding, known_embedding)
-        # print(sim)
 
         if sim > max_sim:
             max_sim = sim
             id = person_id
 
-    # print(f'Score: {max_sim}')
-    # print(f'ID: {id}')
-
-    response_topic = f"raspberry_pi_response/face_recognize"
-    client.publish(response_topic, payload=json.dumps({'pi_id': pi_id, 'data': {'score': float(max_sim), 'id': id}}))
+    buffered = BytesIO()
+    image.save(buffered, format="JPEG")
+    client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
 
 #________________________ START ___________________________
 if __name__ =="__main__":
