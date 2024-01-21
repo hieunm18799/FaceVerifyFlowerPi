@@ -90,12 +90,12 @@ if __name__ == "__main__":
         transforms.Normalize(mean=[127.5, 127.5, 127.5], std=[128.0, 128.0, 128.0]),
     ])
 
+    # _, dev = read_port(comports()[0].device)
     while True:
         cmd = input('Face_verify_input:')
         if cmd == 'exit':
             break
         # Get face from esp32's image
-        # _, dev = read_port(comports()[0].device)
         # dev.write(b's')
         # len = int(dev.readline().decode()[:-2])
         # buf = np.frombuffer(dev.read(len), dtype=np.uint8)
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
         id = None
         max_sim = 0.9
-        
+
         # print(faces_embedding)
 
         for person_id, known_embedding in faces_embedding.items():

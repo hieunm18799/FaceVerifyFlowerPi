@@ -65,16 +65,16 @@ def jpeg_buffer_to_rgb888(jpeg_buffer):
     return img_rgb888
 
 def on_request(client: mqtt.Client, userdata, message):
+    global esp32
     pi_id = message.payload.decode("utf-8")
     # Get face from esp32's image
-    # _, dev = read_port(comports()[0].device)
-    # dev.write(b's')
-    # len = int(dev.readline().decode()[:-2])
-    # buf = np.frombuffer(dev.read(len), dtype=np.uint8)
-    # image = jpeg_buffer_to_rgb888(buf)
-    # image = detect_and_crop_faces(image)
+    esp32.write(b's')
+    len = int(esp32.readline().decode()[:-2])
+    buf = np.frombuffer(esp32.read(len), dtype=np.uint8)
+    image = jpeg_buffer_to_rgb888(buf)
+    image = detect_and_crop_faces(image)
 
-    image = Image.open('./face_dataset/20176752/7.png')
+    # image = Image.open('./face_dataset/20176752/7.png')
 
     embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
@@ -119,11 +119,12 @@ if __name__ =="__main__":
         faces_embedding = pickle.load(handle)
 
     transform = transforms.Compose([
-        transforms.ToTensor(),
+        # transforms.ToTensor(),
         transforms.Normalize(mean=[127.5, 127.5, 127.5], std=[128.0, 128.0, 128.0]),
     ])
 
     print(socket.gethostname())
+    _, esp32 = read_port(comports()[0].device)
 
     client = mqtt.Client(userdata={"hostname": socket.gethostname()})
     client.on_message = on_request
