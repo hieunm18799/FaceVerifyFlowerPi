@@ -12,7 +12,7 @@ import time
 import argparse
 import os
 import datetime
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 BAUDRATE = 230400
 devices = []
@@ -82,10 +82,10 @@ def getDatas(label, tDevice):
     if not os.path.exists(f'{args.face_dataset}/{label}'):
         os.makedirs(f'{args.face_dataset}/{label}')
 
-    print(buf)
+    # print(buf)
     image = jpeg_buffer_to_rgb888(buf)
-    plt.imshow(np.asarray(image))
-    plt.show()
+    # plt.imshow(np.asarray(image))
+    # plt.show()
     image = detect_and_crop_faces(image)
     if image is not None: save_image(image, f'{args.face_dataset}/{label}/{datetime.datetime.now()}.png')
     return True
