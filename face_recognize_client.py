@@ -22,10 +22,10 @@ import base64
 from typing import OrderedDict
 from client import SAVED_CLIENT
 from server import THRESHOLD
+from get_data_client import BAUDRATE
 from know_faces_embedding_client import SAVED_FILE
 
 #________________________ VARIABLES ___________________________
-BAUDRATE = 460800
 
 #________________________ FUNCTION ___________________________
 def print_until_keyword(keyword, dev):
@@ -125,7 +125,10 @@ if __name__ =="__main__":
     ])
 
     print(socket.gethostname())
-    _, esp32 = read_port(comports()[0].device)
+    port = next((port.device for port in comports() if 'ttyUSB' in port.device), None)
+    if port is None:
+        exit('No device connect!')
+    _, esp32 = read_port(port)
 
     client = mqtt.Client(userdata={"hostname": socket.gethostname()})
     client.on_message = on_request

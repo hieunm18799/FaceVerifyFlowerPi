@@ -12,9 +12,9 @@ import time
 import argparse
 import os
 import datetime
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-baudRate = 460800
+BAUDRATE = 230400
 devices = []
 
 def print_until_keyword(keyword, dev):
@@ -27,7 +27,7 @@ def print_until_keyword(keyword, dev):
 
 def read_port(port):
     try:
-        dev =  serial.Serial(None, baudRate)
+        dev =  serial.Serial(None, BAUDRATE)
         dev.port = port
         dev.rts = False
         dev.dtr = False
@@ -75,7 +75,7 @@ def getDatas(label, tDevice):
         # print(len)
         buf = np.frombuffer(dev.read(len), dtype=np.uint8)
     except:
-        print(str)
+        # print(str)
         return False
 
     # buf = np.reshape(buf, (1200,1600,3))
@@ -84,9 +84,10 @@ def getDatas(label, tDevice):
 
     print(buf)
     image = jpeg_buffer_to_rgb888(buf)
-    # plt.imshow(np.asarray(image))
-    # plt.show()
-    save_image(detect_and_crop_faces(image), f'{args.face_dataset}/{label}/{datetime.datetime.now()}.png')
+    plt.imshow(np.asarray(image))
+    plt.show()
+    image = detect_and_crop_faces(image)
+    if image is not None: save_image(image, f'{args.face_dataset}/{label}/{datetime.datetime.now()}.png')
     return True
     
 
@@ -101,12 +102,16 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    dev = read_port(comports()[0].device)
+    print(comports()[0].description)
+    port = next((port.device for port in comports() if 'ttyUSB' in port.device), None)
+    if port is None:
+        exit('No device connect!')
+    dev = read_port(port)
     if dev is None: exit('Can\'t connect to serial port!')
 
     while True:
         label = read_string('Label: ')
-        getDatas(label, dev)
-        print('done')
         if label == 'exit':
             break
+        getDatas(label, dev)
+        print('done')
