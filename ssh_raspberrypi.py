@@ -15,8 +15,8 @@ HOST = 'hieu-Inspiron-5570'
 PYTHON_FOLDER_SOURCE = f'cd Desktop/face/ && source myenv/bin/activate'
 FACE_EMBEDDING_COMMAND = f'python3 know_faces_embedding_client.py'
 
-PYTHON_FOLDER_SOURCE = f'cd Desktop/face-recognize-flower/ && source myenv/bin/activate'
-FACE_EMBEDDING_COMMAND = f'python3 know_faces_embedding_client.py --face_dataset=face_dataset/m/'
+# PYTHON_FOLDER_SOURCE = f'cd Desktop/face-recognize-flower/ && source myenv/bin/activate'
+# FACE_EMBEDDING_COMMAND = f'python3 know_faces_embedding_client.py --face_dataset=face_dataset/m/'
 FACE_GET_COMMAND = f'python3 get_data_client.py'
 FACE_TEST_COMMAND = f'python3 face_test_client.py'
 
@@ -80,7 +80,7 @@ def execute_code_pi(host: str, hostname: str, channel: paramiko.Channel, code: s
 def execute_code_pis(code: str, output_signal: str = '', to_output: list[str] = [], need_print: bool = False, block: bool = True):
     threads.clear()
     threads_queue = []
-    for _, hostname, _, channel in channels:
+    for host, hostname, _, channel in channels:
         q = Queue()
         thread = threading.Thread(target=execute_code_pi, args=(host, hostname, channel, code, q, output_signal, to_output, need_print))
         thread.daemon = True
@@ -111,20 +111,20 @@ if __name__ =="__main__":
     parser.add_argument(
         "--pi_left",
         type=str,
-        default=HOSTNAME_LEFT,
-        help=f"The Raspberry Pi left's IP address or local hostname! (deafault {HOSTNAME_LEFT})",
+        default=HOSTNAME_LEFT + '.local',
+        help=f"The Raspberry Pi left's IP address or local hostname! (deafault {HOSTNAME_LEFT + '.local'})",
     )
     parser.add_argument(
         "--pi_mid",
         type=str,
-        default=HOSTNAME_MID,
-        help=f"The Raspberry Pi mid's IP address or local hostname! (deafault {HOSTNAME_MID})",
+        default=HOSTNAME_MID + '.local',
+        help=f"The Raspberry Pi mid's IP address or local hostname! (deafault {HOSTNAME_MID + '.local'})",
     )
     parser.add_argument(
         "--pi_right",
         type=str,
-        default=HOSTNAME_RIGHT,
-        help=f"The Raspberry Pi right's IP address or local hostname! (deafault {HOSTNAME_RIGHT})",
+        default=HOSTNAME_RIGHT + '.local',
+        help=f"The Raspberry Pi right's IP address or local hostname! (deafault {HOSTNAME_RIGHT + '.local'})",
     )
     parser.add_argument(
         "--know_faces",
@@ -135,8 +135,8 @@ if __name__ =="__main__":
     )
     args = parser.parse_args()
 
-    # hosts.extend([(args.pi_left, HOSTNAME_LEFT), (args.pi_mid, HOSTNAME_MID), (args.pi_right, HOSTNAME_RIGHT)])
-    hosts.append((HOST, HOST))
+    hosts.extend([(args.pi_left, HOSTNAME_LEFT), (args.pi_mid, HOSTNAME_MID), (args.pi_right, HOSTNAME_RIGHT)])
+    # hosts.append((HOST, HOST))
     print(hosts)
     try:
         for host, hostname in hosts:
@@ -146,62 +146,62 @@ if __name__ =="__main__":
             channels.append((host, hostname, ssh, ssh.invoke_shell()))
 
         execute_code_pis('')
-        execute_code_pis(PYTHON_FOLDER_SOURCE + '\r')
+        execute_code_pis(PYTHON_FOLDER_SOURCE + '\r', need_print=True)
 
-        if args.know_faces is False: execute_code_pis(FACE_EMBEDDING_COMMAND + '\r')
+        if args.know_faces is False: execute_code_pis(FACE_EMBEDDING_COMMAND + '\r', need_print=True)
 
         if len(channels) != len(hosts):
             exit(f'Connected fail to some Pi!')
 
         outputs = []
-        res = {
-            'Score': [],
-            'ID': [],
-        }
+        # res = {
+        #     'Score': [],
+        #     'ID': [],
+        # }
 
-        queues_input = execute_code_pis(FACE_TEST_COMMAND + '\r', 'ID', outputs, block=False)
+        # queues_input = execute_code_pis(FACE_TEST_COMMAND + '\r', 'ID', outputs, block=False)
 
-        while True:
-            res['ID'].clear()
-            res['Score'].clear()
-            outputs.clear()
-            start = time.time()
-
-            for q in queues_input:
-                q.put(('Face_verify_input:', 's\r'))
-
-            while len(outputs) != len(hosts):
-                pass
-            for output in outputs:
-                _, text = output
-                temp = extract_score_id(text)
-                for key, val in temp.items():
-                    res[key].append(val)
-
-            print(res)
-            if len(res['ID']) != len(hosts):
-                print('Some camera cannot verify face!')
-                break
-            if len(set(res['ID'])) != 1:
-                print('The face cannot be verify because the result of cameras is not match!')
-                continue
-
-            print(f'The face\'s ID is {res["ID"][0]} and the average score is {sum(res["Score"]) / len(res["Score"])}')
-            print(f'Time: {time.time() - start}')
-            
-        # queues_input = execute_code_pis(FACE_GET_COMMAND + '\r', 'done', outputs, block=False)
         # while True:
+        #     res['ID'].clear()
+        #     res['Score'].clear()
         #     outputs.clear()
-        #     label = read_string('Label: ')
+        #     start = time.time()
+
         #     for q in queues_input:
-        #         q.put(('Label:', label + '\r'))
+        #         q.put(('Face_verify_input:', 's\r'))
 
         #     while len(outputs) != len(hosts):
         #         pass
-        #     # print(outputs)
-        #     if len(label) == 0:
+        #     for output in outputs:
+        #         _, text = output
+        #         temp = extract_score_id(text)
+        #         for key, val in temp.items():
+        #             res[key].append(val)
+
+        #     print(res)
+        #     if len(res['ID']) != len(hosts):
+        #         print('Some camera cannot verify face!')
         #         break
-        #     label = ''
+        #     if len(set(res['ID'])) != 1:
+        #         print('The face cannot be verify because the result of cameras is not match!')
+        #         continue
+
+        #     print(f'The face\'s ID is {res["ID"][0]} and the average score is {sum(res["Score"]) / len(res["Score"])}')
+        #     print(f'Time: {time.time() - start}')
+            
+        queues_input = execute_code_pis(FACE_GET_COMMAND + '\r', 'done', outputs, block=False, need_print=True)
+        while True:
+            outputs.clear()
+            label = read_string('Label: ')
+            for q in queues_input:
+                q.put(('Label:', label + '\r'))
+
+            while len(outputs) != len(hosts):
+                pass
+            # print(outputs)
+            if label == 'exit':
+                break
+            label = ''
             
 
     except KeyboardInterrupt:

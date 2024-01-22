@@ -91,6 +91,7 @@ def get_face_recognize():
             continue
         print(f'The face\'s id is {res["id"][0]} and the average score is {sum(res["score"]) / len(res["score"])}')
         print(f'Time: {time.time() - start_time}')
+        time.sleep(1)
 #________________________ START ___________________________
 if __name__ =="__main__":
     parser = argparse.ArgumentParser(description="MQTT face recognize server!")
@@ -115,8 +116,8 @@ if __name__ =="__main__":
     args = parser.parse_args()
 
 
-    pi_ids = [args.pi_left, args.pi_mid, args.pi_right]
-    # pi_ids = ['localhost']
+    # pi_ids = [args.pi_left, args.pi_mid, args.pi_right]
+    pi_ids = ['192.168.5.39`']
     image_sources = {pid_id: {'image_io': None, 'label': None} for pid_id in pi_ids}
     clients = {}
     aggregated_results = {}

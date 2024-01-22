@@ -101,12 +101,12 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    # dev = read_port(comports()[0].device)
-    # if dev is None: exit('Can\'t connect to serial port!')
+    dev = read_port(comports()[0].device)
+    if dev is None: exit('Can\'t connect to serial port!')
 
     while True:
         label = read_string('Label: ')
-        # getDatas(label, dev)
+        getDatas(label, dev)
         print('done')
         if label == 'exit':
             break

@@ -86,23 +86,23 @@ if __name__ == "__main__":
         faces_embedding = pickle.load(handle)
 
     transform = transforms.Compose([
-        transforms.ToTensor(),
+        # transforms.ToTensor(),
         transforms.Normalize(mean=[127.5, 127.5, 127.5], std=[128.0, 128.0, 128.0]),
     ])
 
-    # _, dev = read_port(comports()[0].device)
+    _, dev = read_port(comports()[0].device)
     while True:
         cmd = input('Face_verify_input:')
         if cmd == 'exit':
             break
         # Get face from esp32's image
-        # dev.write(b's')
-        # len = int(dev.readline().decode()[:-2])
-        # buf = np.frombuffer(dev.read(len), dtype=np.uint8)
-        # image = jpeg_buffer_to_rgb888(buf)
-        # image = detect_and_crop_faces(image)
+        dev.write(b's')
+        len = int(dev.readline().decode()[:-2])
+        buf = np.frombuffer(dev.read(len), dtype=np.uint8)
+        image = jpeg_buffer_to_rgb888(buf)
+        image = detect_and_crop_faces(image)
 
-        image = Image.open('./face_dataset/m/20176752/7.png')
+        # image = Image.open('./face_dataset/m/20176752/7.png')
 
         embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
