@@ -19,10 +19,11 @@ def detect_and_crop_faces(img, target=(112, 96)):
     mtcnn = MTCNN(device='cpu', select_largest=True, post_process=False, min_face_size=96)
 
     boxes, _ = mtcnn.detect(img)
+    original_image = None
 
     if boxes is None:
         print("The image have 0 faces!")
-        return False
+        return None
 
     # print(boxes)
     for i, box in enumerate(boxes):
@@ -31,7 +32,7 @@ def detect_and_crop_faces(img, target=(112, 96)):
         if box_w / img.width >= 0.15 and box_h / img.height >= 0.233:
             if i > 0:
                 print("The image have 2 faces!")
-                return False
+                return None
             mul = math.ceil(box_w / ratio[1])
             if mul < math.ceil(box_h / ratio[0]):
                 mul = math.ceil(box_h / ratio[0])
