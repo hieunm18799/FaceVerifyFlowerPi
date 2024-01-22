@@ -75,22 +75,21 @@ def on_request(client: mqtt.Client, userdata, message):
     image = detect_and_crop_faces(image)
 
     # image = Image.open('./face_dataset/20176752/7.png')
-
-    embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
-
     id = None
     max_sim = THRESHOLD
 
-    for person_id, known_embedding in faces_embedding.items():
-        sim = cal_similarity(embedding, known_embedding)
+    if image is not None:
+        embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
-        if sim > max_sim:
-            max_sim = sim
-            id = person_id
+        for person_id, known_embedding in faces_embedding.items():
+            sim = cal_similarity(embedding, known_embedding)
+
+            if sim > max_sim:
+                max_sim = sim
+                id = person_id
 
     buffered = BytesIO()
-    numpy_img = image.numpy()
-    pil_img = Image.fromarray(numpy_img)
+    pil_img = transforms.ToPILImage()(image)
     pil_img.save(buffered, format="JPEG")
     client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
 

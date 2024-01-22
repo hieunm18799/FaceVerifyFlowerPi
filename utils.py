@@ -1,4 +1,4 @@
-from torch import save
+from torch import save, Tensor
 from torchvision import transforms
 from facenet_pytorch import MTCNN
 import numpy as np
@@ -12,7 +12,7 @@ PATIENCE = 3
 
 #________________________ FUNCTION ___________________________
 # Detect 1 face in image and save it to file
-def detect_and_crop_faces(img, target=(112, 96)):
+def detect_and_crop_faces(img, target=(112, 96)) -> None or Tensor:
     ratio = Fraction(target[0], target[1])
     ratio = ratio.as_integer_ratio()
     # Define MTCNN module
