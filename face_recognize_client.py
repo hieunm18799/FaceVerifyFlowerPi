@@ -77,6 +77,7 @@ def on_request(client: mqtt.Client, userdata, message):
     # image = Image.open('./face_dataset/20176752/7.png')
     id = None
     max_sim = THRESHOLD
+    buffered = BytesIO()
 
     if image is not None:
         embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
@@ -88,9 +89,8 @@ def on_request(client: mqtt.Client, userdata, message):
                 max_sim = sim
                 id = person_id
 
-    buffered = BytesIO()
-    pil_img = transforms.ToPILImage()(image)
-    pil_img.save(buffered, format="JPEG")
+        pil_img = transforms.ToPILImage()(image)
+        pil_img.save(buffered, format="JPEG")
     client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
 
 #________________________ START ___________________________
