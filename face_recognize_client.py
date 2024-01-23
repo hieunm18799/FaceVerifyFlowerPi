@@ -21,11 +21,12 @@ import base64
 
 from typing import OrderedDict
 from client import SAVED_CLIENT
-from server import THRESHOLD
+# from server import THRESHOLD
 from get_data_client import BAUDRATE
 from know_faces_embedding_client import SAVED_FILE
 
 #________________________ VARIABLES ___________________________
+THRESHOLD = 0.8
 
 #________________________ FUNCTION ___________________________
 def print_until_keyword(keyword, dev):
