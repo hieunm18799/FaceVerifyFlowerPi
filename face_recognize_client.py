@@ -49,11 +49,12 @@ def read_port(port):
         dev.dtr = False
         time.sleep(1)
         dev.reset_input_buffer()
-        print_until_keyword('d', dev)
-        dev.write(b'd')
-        pos = dev.readline().decode()[:-2]
-        print(pos, port)
-        return (pos, dev)
+        # print_until_keyword('d', dev)
+        # dev.write(b'd')
+        # pos = dev.readline().decode()[:-2]
+        # print(pos, port)
+        # return (pos, dev)
+        return dev
     except Exception as error:
         print("An exception occurred: ", error)
         return None
@@ -68,23 +69,22 @@ def jpeg_buffer_to_rgb888(jpeg_buffer):
 def on_request(client: mqtt.Client, userdata, message):
     global esp32
     pi_id = message.payload.decode("utf-8")
-    # image = Image.open('./face_dataset/20176752/7.png')
     id = None
     max_sim = THRESHOLD
     buffered = BytesIO()
 
-    # Get face from esp32's image
-    print_until_keyword('wait', esp32)
-    esp32.write(b's')
-    read_time = time.time()
-    line = esp32.readline().decode()[:-2]
-    if line.isdigit():
-        len = int(line)
-        buf = np.frombuffer(esp32.read(len), dtype=np.uint8)
+    try:
+        # Get face from esp32's image
+        print_until_keyword('wait', esp32)
+        esp32.write(b's')
+        read_time = time.time()
+        str = esp32.readline().decode()[:-2]
+        buf = base64.b64decode(str)
+        # image = Image.open('./face_dataset/20176752/7.png')
         print(f'Time get image: {time.time() - read_time}s')
+
         image = jpeg_buffer_to_rgb888(buf)
         image = detect_and_crop_faces(image)
-
         if image is not None:
             embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
@@ -97,8 +97,9 @@ def on_request(client: mqtt.Client, userdata, message):
 
             pil_img = transforms.ToPILImage()(image)
             pil_img.save(buffered, format="JPEG")
-    else:
-        print(line)
+    except Exception as error:
+        print("An exception occurred: ", error)
+        return False
     client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'time': time.time(), 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
 
 #________________________ START ___________________________
@@ -136,7 +137,7 @@ if __name__ =="__main__":
     port = next((port.device for port in comports() if 'ttyUSB' in port.device), None)
     if port is None:
         exit('No device connect!')
-    _, esp32 = read_port(port)
+    esp32 = read_port(port)
 
     client = mqtt.Client(userdata={"hostname": socket.gethostname()})
     client.on_message = on_request

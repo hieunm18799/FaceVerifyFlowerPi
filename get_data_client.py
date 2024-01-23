@@ -7,14 +7,15 @@ import numpy as np
 from PIL import Image
 from io import BytesIO
 from utils import detect_and_crop_faces
+import base64
 
 import time
 import argparse
 import os
 import datetime
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-BAUDRATE = 230400
+BAUDRATE = 460800
 devices = []
 
 def print_until_keyword(keyword, dev):
@@ -37,13 +38,13 @@ def read_port(port):
         dev.dtr = False
         time.sleep(1)
         dev.reset_input_buffer()
-        print_until_keyword('d', dev)
-        dev.write(b'd')
-        pos = dev.readline().decode()[:-2]
-        print(pos, port)
-        return (pos, dev)
+        # print_until_keyword('d', dev)
+        # dev.write(b'd')
+        # pos = dev.readline().decode()[:-2]
+        # print(pos, port)
+        return dev
     except Exception as error:
-        print("An exception occurred: ", error) # An exception occurred: division by zero
+        print("An exception occurred: ", error)
         return None
 
 def read_string(msg):
@@ -65,29 +66,24 @@ def jpeg_buffer_to_rgb888(jpeg_buffer):
 
     return img_rgb888
 
-def getDatas(label, tDevice):
-    _, dev = tDevice
-    dev.write(b's')
-
-    str = dev.readline().decode()[:-2]
-    try:
-        len = int(str)
-        # print(len)
-        buf = np.frombuffer(dev.read(len), dtype=np.uint8)
-    except:
-        # print(str)
-        return False
-
-    # buf = np.reshape(buf, (1200,1600,3))
+def getDatas(label, dev):
     if not os.path.exists(f'{args.face_dataset}/{label}'):
         os.makedirs(f'{args.face_dataset}/{label}')
-
-    # print(buf)
-    image = jpeg_buffer_to_rgb888(buf)
-    # plt.imshow(np.asarray(image))
-    # plt.show()
-    image = detect_and_crop_faces(image)
-    if image is not None: save_image(image, f'{args.face_dataset}/{label}/{datetime.datetime.now()}.png')
+    try:
+        print_until_keyword('wait', dev)
+        dev.write(b's')
+        str = dev.readline().decode()[:-2]
+        # print(str)
+        buf = base64.b64decode(str)
+        image = jpeg_buffer_to_rgb888(buf)
+        # plt.imshow(np.asarray(image))
+        # plt.show()
+        image = detect_and_crop_faces(image)
+        if image is not None: save_image(image, f'{args.face_dataset}/{label}/{datetime.datetime.now()}.png')
+    except Exception as error:
+        print("An exception occurred: ", error)
+        return False
+    
     return True
     
 
@@ -102,7 +98,6 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    print(comports()[0].description)
     port = next((port.device for port in comports() if 'ttyUSB' in port.device), None)
     if port is None:
         exit('No device connect!')
@@ -113,5 +108,7 @@ if __name__ == '__main__':
         label = read_string('Label: ')
         if label == 'exit':
             break
+        read_time = time.time()
         getDatas(label, dev)
+        print(f'Time: {time.time() - read_time}')
         print('done')
