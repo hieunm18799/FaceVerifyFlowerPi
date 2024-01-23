@@ -1,4 +1,5 @@
 #include "image_provider.h"
+#include <base64.h>
 
 // Get the camera module ready
 bool InitCamera() {
@@ -33,7 +34,7 @@ bool InitCamera() {
     .frame_size = FRAMESIZE_UXGA,   // QQVGA-UXGA Do not use sizes above QVGA when not JPEG
 
     .jpeg_quality = 10, // 0-63 lower number means higher quality
-    .fb_count = 1,      // if more than one, i2s runs in continuous mode. Use only with JPEG
+    .fb_count = 2,      // if more than one, i2s runs in continuous mode. Use only with JPEG
     .fb_location = CAMERA_FB_IN_PSRAM,
     .grab_mode = CAMERA_GRAB_LATEST,
   };
@@ -79,7 +80,7 @@ bool InitCamera() {
   s->set_dcw(s, 1);            // 0 = disable , 1 = enable
   s->set_colorbar(s, 0);       // 0 = disable , 1 = enable
 
-  delay(10000);
+  delay(15000);
   // for (uint8_t i = 0; i < 7; i++) {
   //   delay(100);
   //   camera_fb_t *fb = esp_camera_fb_get();
@@ -104,8 +105,11 @@ bool DecodeAndProcessImage() {
       return false;
   }
 
-  Serial.println(fb->len);
-  Serial.write(fb->buf, fb->len * sizeof(uint8_t));
+  // Serial.println(fb->len);
+  // Serial.write(fb->buf, fb->len * sizeof(uint8_t));
+  String encoded = base64::encode(fb->buf, fb->len);
+  Serial.write(encoded.c_str(), encoded.length());    
+  Serial.println();
   esp_camera_fb_return(fb);
 
   return true;
