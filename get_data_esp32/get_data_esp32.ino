@@ -19,6 +19,7 @@ void setup() {
 
 void loop() {
     delay(100);
+    Serial.println("wait");
     while(!Serial.available());
     char read = Serial.read();
     if (read == 's') {

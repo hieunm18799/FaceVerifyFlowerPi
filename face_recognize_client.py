@@ -73,6 +73,7 @@ def on_request(client: mqtt.Client, userdata, message):
     buffered = BytesIO()
 
     # Get face from esp32's image
+    print_until_keyword('wait')
     esp32.write(b's')
     line = esp32.readline().decode()[:-2]
     if line.isdigit():
@@ -93,6 +94,8 @@ def on_request(client: mqtt.Client, userdata, message):
 
             pil_img = transforms.ToPILImage()(image)
             pil_img.save(buffered, format="JPEG")
+    else:
+        print(line)
     client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
 
 #________________________ START ___________________________
