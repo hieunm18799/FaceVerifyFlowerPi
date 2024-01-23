@@ -73,7 +73,7 @@ def on_request(client: mqtt.Client, userdata, message):
     buffered = BytesIO()
 
     # Get face from esp32's image
-    print_until_keyword('wait')
+    print_until_keyword('wait', esp32)
     esp32.write(b's')
     line = esp32.readline().decode()[:-2]
     if line.isdigit():
