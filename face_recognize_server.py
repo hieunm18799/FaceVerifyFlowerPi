@@ -12,7 +12,7 @@ from io import BytesIO
 HOSTNAME_LEFT = 'raspberrypi-left.local'
 HOSTNAME_MID = 'raspberrypi-mid.local'
 HOSTNAME_RIGHT = 'raspberrypi-right.local'
-RES_TIMEOUT = 10
+RES_TIMEOUT = 15
 RECONNECT_TIME = 60
 
 #________________________ FUNCTION ___________________________
@@ -25,11 +25,12 @@ def on_connect(client, userdata, flags, rc):
         print(f"Failed to connect to {pi_id}.")
 
 def on_message(client, userdata, message):
-    global aggregated_results
+    global aggregated_results, limit_time
     command = message.topic.split("/")[-1]
     if command == 'face_recognize':
         data = json.loads(message.payload.decode("utf-8"))
-        aggregated_results[data['pi_id']] = data['data']
+        if data['time'] < limit_time:
+            aggregated_results[data['pi_id']] = data['data']
 
 def reconnect_to_pi(pi_id):
     global clients
@@ -50,7 +51,7 @@ def update_images(sources: dict):
             time.sleep(0.1)
 
 def get_face_recognize():
-    global aggregated_results, image_sources
+    global aggregated_results, image_sources, limit_time
     while True:
         aggregated_results = {}
         for pi_id in pi_ids:
@@ -60,13 +61,12 @@ def get_face_recognize():
             clients[pi_id].publish('raspberry_pi_request/face_recognize', payload=f"{pi_id}")
 
         start_time = time.time()
+        limit_time = start_time + RES_TIMEOUT
         while True:
-            received_pis = set(aggregated_results.keys())
-
-            if set(received_pis) == set(pi_ids):
+            if set(aggregated_results.keys()) == set(pi_ids):
                 break
 
-            if time.time() - start_time > RES_TIMEOUT:
+            if time.time() > limit_time:
                 print("Timeout: Not all Raspberry Pi responded within the timeout period.")
                 break
             time.sleep(0.1)
@@ -138,6 +138,7 @@ if __name__ =="__main__":
     image_sources = {pid_id: {'image_io': None, 'label': None} for pid_id in pi_ids}
     clients = {}
     aggregated_results = {}
+    limit_time = 0.0
 
     root = tk.Tk()
     root.title("Image Streaming Window")

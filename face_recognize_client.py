@@ -96,7 +96,7 @@ def on_request(client: mqtt.Client, userdata, message):
             pil_img.save(buffered, format="JPEG")
     else:
         print(line)
-    client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
+    client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'time': time.time(), 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
 
 #________________________ START ___________________________
 if __name__ =="__main__":
