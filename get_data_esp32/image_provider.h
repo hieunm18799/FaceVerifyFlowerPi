@@ -20,7 +20,7 @@ limitations under the License.
 #include "esp_camera.h"
 #include <JPEGDecoder.h>
 
-bool GetImage(int image_width, int image_height, int channels, uint8_t* image_data);
+bool GetImage();
 bool InitCamera();
 
 #endif  // IMAGE_PROVIDER_H_

@@ -12,7 +12,7 @@ from io import BytesIO
 HOSTNAME_LEFT = 'raspberrypi-left.local'
 HOSTNAME_MID = 'raspberrypi-mid.local'
 HOSTNAME_RIGHT = 'raspberrypi-right.local'
-RES_TIMEOUT = 5
+RES_TIMEOUT = 10
 RECONNECT_TIME = 60
 
 #________________________ FUNCTION ___________________________
@@ -72,8 +72,17 @@ def get_face_recognize():
             time.sleep(0.1)
 
 
+        print(aggregated_results)
         if len(pi_ids) != len(aggregated_results):
-            print('Some camera cannot verify face!')
+            print('Some pi didn\'t return result!')
+            print(f'Time: {time.time() - start_time}')
+            time.sleep(0.5)
+            continue
+
+        if any(len(data['image']) == 0 for data in aggregated_results.values()):
+            print('Some pi didn\'t have face\'s image!')
+            print(f'Time: {time.time() - start_time}')
+            time.sleep(0.5)
             continue
 
         res = {
@@ -83,15 +92,23 @@ def get_face_recognize():
         for pi_id, data in aggregated_results.items():
             res['score'].append(data['score'])
             res['id'].append(data['id'])
-            image_sources[pi_id]['image_io'] = BytesIO(base64.b64decode(data['image']))
+            if len(data['image']) != 0: image_sources[pi_id]['image_io'] = BytesIO(base64.b64decode(data['image']))
         
+        if any(data['id'] is None for data in aggregated_results.values()):
+            print('Some pi didn\'t recognize face!')
+            print(f'Time: {time.time() - start_time}')
+            time.sleep(0.5)
+            continue
 
         if len(set(res['id'])) != 1:
             print('The face cannot be verify because the result of cameras is not match!')
+            print(f'Time: {time.time() - start_time}')
+            time.sleep(0.5)
             continue
+
         print(f'The face\'s id is {res["id"][0]} and the average score is {sum(res["score"]) / len(res["score"])}')
         print(f'Time: {time.time() - start_time}')
-        time.sleep(1)
+        time.sleep(0.5)
 #________________________ START ___________________________
 if __name__ =="__main__":
     parser = argparse.ArgumentParser(description="MQTT face recognize server!")
@@ -116,8 +133,8 @@ if __name__ =="__main__":
     args = parser.parse_args()
 
 
-    # pi_ids = [args.pi_left, args.pi_mid, args.pi_right]
-    pi_ids = ['192.168.5.39`']
+    # pi_ids = ['localhost']
+    pi_ids = [args.pi_left, args.pi_mid, args.pi_right]
     image_sources = {pid_id: {'image_io': None, 'label': None} for pid_id in pi_ids}
     clients = {}
     aggregated_results = {}

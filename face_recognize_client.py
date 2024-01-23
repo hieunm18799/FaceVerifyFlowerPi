@@ -67,30 +67,32 @@ def jpeg_buffer_to_rgb888(jpeg_buffer):
 def on_request(client: mqtt.Client, userdata, message):
     global esp32
     pi_id = message.payload.decode("utf-8")
-    # Get face from esp32's image
-    esp32.write(b's')
-    len = int(esp32.readline().decode()[:-2])
-    buf = np.frombuffer(esp32.read(len), dtype=np.uint8)
-    image = jpeg_buffer_to_rgb888(buf)
-    image = detect_and_crop_faces(image)
-
     # image = Image.open('./face_dataset/20176752/7.png')
     id = None
     max_sim = THRESHOLD
     buffered = BytesIO()
 
-    if image is not None:
-        embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
+    # Get face from esp32's image
+    esp32.write(b's')
+    line = esp32.readline().decode()[:-2]
+    if line.isdigit():
+        len = int(line)
+        buf = np.frombuffer(esp32.read(len), dtype=np.uint8)
+        image = jpeg_buffer_to_rgb888(buf)
+        image = detect_and_crop_faces(image)
 
-        for person_id, known_embedding in faces_embedding.items():
-            sim = cal_similarity(embedding, known_embedding)
+        if image is not None:
+            embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
-            if sim > max_sim:
-                max_sim = sim
-                id = person_id
+            for person_id, known_embedding in faces_embedding.items():
+                sim = cal_similarity(embedding, known_embedding)
 
-        pil_img = transforms.ToPILImage()(image)
-        pil_img.save(buffered, format="JPEG")
+                if sim > max_sim:
+                    max_sim = sim
+                    id = person_id
+
+            pil_img = transforms.ToPILImage()(image)
+            pil_img.save(buffered, format="JPEG")
     client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
 
 #________________________ START ___________________________
