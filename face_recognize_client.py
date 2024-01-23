@@ -99,7 +99,6 @@ def on_request(client: mqtt.Client, userdata, message):
             pil_img.save(buffered, format="JPEG")
     except Exception as error:
         print("An exception occurred: ", error)
-        return False
     client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'time': time.time(), 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
 
 #________________________ START ___________________________
