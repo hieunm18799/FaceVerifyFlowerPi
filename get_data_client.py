@@ -13,7 +13,7 @@ import time
 import argparse
 import os
 import datetime
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 BAUDRATE = 460800
 devices = []
