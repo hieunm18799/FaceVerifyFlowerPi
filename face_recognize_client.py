@@ -75,10 +75,12 @@ def on_request(client: mqtt.Client, userdata, message):
     # Get face from esp32's image
     print_until_keyword('wait', esp32)
     esp32.write(b's')
+    read_time = time.time()
     line = esp32.readline().decode()[:-2]
     if line.isdigit():
         len = int(line)
         buf = np.frombuffer(esp32.read(len), dtype=np.uint8)
+        print(f'Time get image: {time.time() - read_time}s')
         image = jpeg_buffer_to_rgb888(buf)
         image = detect_and_crop_faces(image)
 

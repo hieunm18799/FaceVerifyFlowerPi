@@ -72,14 +72,14 @@ bool InitCamera() {
   s->set_wpc(s, 1);            // 0 = disable , 1 = enable
   s->set_raw_gma(s, 1);        // 0 = disable , 1 = enable
   s->set_lenc(s, 1);           // 0 = disable , 1 = enable
-  // s->set_hmirror(s, 0);        // 0 = disable , 1 = enable
-  // s->set_vflip(s, 0);          // 0 = disable , 1 = enable
-  s->set_hmirror(s, 1);        // 0 = disable , 1 = enable
-  s->set_vflip(s, 1);          // 0 = disable , 1 = enable
+  s->set_hmirror(s, 0);        // 0 = disable , 1 = enable
+  s->set_vflip(s, 0);          // 0 = disable , 1 = enable
+  // s->set_hmirror(s, 1);        // 0 = disable , 1 = enable
+  // s->set_vflip(s, 1);          // 0 = disable , 1 = enable
   s->set_dcw(s, 1);            // 0 = disable , 1 = enable
   s->set_colorbar(s, 0);       // 0 = disable , 1 = enable
 
-  delay(5000);
+  delay(10000);
   // for (uint8_t i = 0; i < 7; i++) {
   //   delay(100);
   //   camera_fb_t *fb = esp_camera_fb_get();

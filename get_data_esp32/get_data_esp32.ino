@@ -14,21 +14,16 @@ void setup() {
         delay(100);
         connect = Serial.read();
     } while(connect != 'd');
-    Serial.println('l');
+    Serial.println('m');
 }
 
 void loop() {
     // delay(100);
     char read;
-    do {
-        Serial.println("wait");
-        delay(100);
-        read = Serial.read();
-    } while(read != 's');
-    // Serial.println("wait");
-    // while(!Serial.available());
-    // read = Serial.read();
-    // if (read == 's') {
-    GetImage();
-    // }
+    Serial.println("wait");
+    while(!Serial.available());
+    read = Serial.read();
+    if (read == 's') {
+        GetImage();
+    }
 }
