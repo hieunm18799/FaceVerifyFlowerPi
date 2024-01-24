@@ -14,7 +14,7 @@ void setup() {
 }
 
 void loop() {
-    // delay(100);
+    delay(500);
     char read;
     Serial.println("wait");
     while(!Serial.available());

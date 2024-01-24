@@ -27,6 +27,7 @@ from know_faces_embedding_client import SAVED_FILE
 
 #________________________ VARIABLES ___________________________
 THRESHOLD = 0.8
+LIMIT_TIME = 10
 
 #________________________ FUNCTION ___________________________
 def print_until_keyword(keyword, dev):
@@ -68,10 +69,13 @@ def jpeg_buffer_to_rgb888(jpeg_buffer):
 
 def on_request(client: mqtt.Client, userdata, message):
     global esp32
-    pi_id = message.payload.decode("utf-8")
+    mess = json.loads(message.payload.decode("utf-8"))
     id = None
     max_sim = THRESHOLD
     buffered = BytesIO()
+
+    if (mess['start_time'] - time.time() > LIMIT_TIME):
+        return
 
     try:
         # Get face from esp32's image
@@ -79,6 +83,7 @@ def on_request(client: mqtt.Client, userdata, message):
         esp32.write(b's')
         read_time = time.time()
         str = esp32.readline().decode()[:-2]
+        print(str[-4:])
         buf = base64.b64decode(str)
         # image = Image.open('./face_dataset/20176752/7.png')
         print(f'Time get image: {time.time() - read_time}s')
@@ -99,7 +104,7 @@ def on_request(client: mqtt.Client, userdata, message):
             pil_img.save(buffered, format="JPEG")
     except Exception as error:
         print("An exception occurred: ", error)
-    client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': pi_id, 'time': time.time(), 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
+    client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': mess['pi_id'], 'time': time.time(), 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
 
 #________________________ START ___________________________
 if __name__ =="__main__":
