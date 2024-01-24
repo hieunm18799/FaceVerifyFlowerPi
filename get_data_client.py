@@ -28,7 +28,7 @@ def print_until_keyword(keyword, dev):
 
 def read_port(port):
     try:
-        dev =  serial.Serial(None, BAUDRATE)
+        dev =  serial.Serial(None, BAUDRATE, timeout = 10.0)
         dev.port = port
         dev.rts = False
         dev.dtr = False

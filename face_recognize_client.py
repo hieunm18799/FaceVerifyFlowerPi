@@ -40,7 +40,7 @@ def print_until_keyword(keyword, dev):
 
 def read_port(port):
     try:
-        dev =  serial.Serial(None, BAUDRATE)
+        dev =  serial.Serial(None, BAUDRATE, timeout=LIMIT_TIME / 2)
         dev.port = port
         dev.rts = False
         dev.dtr = False
@@ -94,8 +94,10 @@ def on_request(client: mqtt.Client, userdata, message):
             if image is not None:
                 embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
-                for person_id, known_embedding in faces_embedding.items():
-                    sim = cal_similarity(embedding, known_embedding)
+                for person_id, person_known_embedding in faces_embedding.items():
+                    for known_embedding in person_known_embedding:
+                        temp = cal_similarity(embedding, known_embedding)
+                        sim = temp if temp > sim else sim
 
                     if sim > max_sim:
                         max_sim = sim
@@ -129,7 +131,6 @@ if __name__ =="__main__":
     model.eval()
 
     # Loading the saved embeddings
-    # faces_embedding = torch.load(SAVED_CLIENT + args.saved_file)
     with open(SAVED_CLIENT + args.saved_file, 'rb') as handle:
         faces_embedding = pickle.load(handle)
 

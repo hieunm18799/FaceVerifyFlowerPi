@@ -58,7 +58,7 @@ def get_face_recognize():
             if not clients[pi_id].is_connected():
                 reconnect_to_pi(pi_id)
                 clients[pi_id].loop_start()
-            clients[pi_id].publish('raspberry_pi_request/face_recognize', payload=f"{pi_id}")
+            clients[pi_id].publish('raspberry_pi_request/face_recognize', payload=json.dumps({'pi_id': pi_id, 'start_time': time.time()}))
 
         start_time = time.time()
         limit_time = start_time + RES_TIMEOUT

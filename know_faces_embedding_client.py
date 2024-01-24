@@ -62,9 +62,9 @@ if __name__ =="__main__":
 
                 known_faces_embeddings[person_id].append(embeddings[i])
 
-    for person_id, embeddings_list in known_faces_embeddings.items():
-        avg_embedding = torch.mean(torch.vstack([torch.tensor(e) for e in embeddings_list]), dim=0)
-        known_faces_embeddings[person_id] = avg_embedding
+    # for person_id, embeddings_list in known_faces_embeddings.items():
+    #     avg_embedding = torch.mean(torch.vstack([torch.tensor(e) for e in embeddings_list]), dim=0)
+    #     known_faces_embeddings[person_id] = avg_embedding
 
     # torch.save(known_faces_embeddings, SAVED_CLIENT + args.saved_file)
     with open(SAVED_CLIENT + args.saved_file, 'wb') as handle:
