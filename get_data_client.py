@@ -72,14 +72,15 @@ def getDatas(label, dev):
     try:
         print_until_keyword('wait', dev)
         dev.write(b's')
-        str = dev.readline().decode()[:-2]
-        # print(str)
-        buf = base64.b64decode(str)
-        image = jpeg_buffer_to_rgb888(buf)
-        # plt.imshow(np.asarray(image))
-        # plt.show()
-        image = detect_and_crop_faces(image)
-        if image is not None: save_image(image, f'{args.face_dataset}/{label}/{datetime.datetime.now()}.png')
+        line = dev.readline().decode()[:-2]
+        if line.isdigit():
+            len = int(line)
+            buf = np.frombuffer(dev.read(len), dtype=np.uint8)
+            image = jpeg_buffer_to_rgb888(buf)
+            # plt.imshow(np.asarray(image))
+            # plt.show()
+            image = detect_and_crop_faces(image)
+            if image is not None: save_image(image, f'{args.face_dataset}/{label}/{datetime.datetime.now()}.png')
     except Exception as error:
         print("An exception occurred: ", error)
         return False

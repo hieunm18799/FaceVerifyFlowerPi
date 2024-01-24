@@ -1,5 +1,5 @@
 #include "image_provider.h"
-#include <base64.h>
+// #include <base64.h>
 
 // Get the camera module ready
 bool InitCamera() {
@@ -105,13 +105,13 @@ bool DecodeAndProcessImage() {
       return false;
   }
 
-  // Serial.println(fb->len);
-  // Serial.write(fb->buf, fb->len * sizeof(uint8_t));
-  String encoded = base64::encode(fb->buf, fb->len);
-  Serial.write(encoded.c_str(), encoded.length());    
-  Serial.println();
+  Serial.println(fb->len);
+  Serial.write(fb->buf, fb->len * sizeof(uint8_t));
+  // String encoded = base64::encode(fb->buf, fb->len);
+  // Serial.write(encoded.c_str(), encoded.length());    
+  // Serial.println();
+  
   esp_camera_fb_return(fb);
-
   return true;
 }
 

@@ -82,26 +82,27 @@ def on_request(client: mqtt.Client, userdata, message):
         print_until_keyword('wait', esp32)
         esp32.write(b's')
         read_time = time.time()
-        str = esp32.readline().decode()[:-2]
-        print(str[-4:])
-        buf = base64.b64decode(str)
-        # image = Image.open('./face_dataset/20176752/7.png')
-        print(f'Time get image: {time.time() - read_time}s')
+        line = esp32.readline().decode()[:-2]
+        if line.isdigit():
+            len = int(line)
+            buf = np.frombuffer(esp32.read(len), dtype=np.uint8)
+            # image = Image.open('./face_dataset/20176752/7.png')
+            print(f'Time get image: {time.time() - read_time}s')
 
-        image = jpeg_buffer_to_rgb888(buf)
-        image = detect_and_crop_faces(image)
-        if image is not None:
-            embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
+            image = jpeg_buffer_to_rgb888(buf)
+            image = detect_and_crop_faces(image)
+            if image is not None:
+                embedding = model(transform(image).unsqueeze(0)).cpu().detach().numpy().flatten()
 
-            for person_id, known_embedding in faces_embedding.items():
-                sim = cal_similarity(embedding, known_embedding)
+                for person_id, known_embedding in faces_embedding.items():
+                    sim = cal_similarity(embedding, known_embedding)
 
-                if sim > max_sim:
-                    max_sim = sim
-                    id = person_id
+                    if sim > max_sim:
+                        max_sim = sim
+                        id = person_id
 
-            pil_img = transforms.ToPILImage()(image)
-            pil_img.save(buffered, format="JPEG")
+                pil_img = transforms.ToPILImage()(image)
+                pil_img.save(buffered, format="JPEG")
     except Exception as error:
         print("An exception occurred: ", error)
     client.publish('raspberry_pi_response/face_recognize', payload=json.dumps({'pi_id': mess['pi_id'], 'time': time.time(), 'data': {'score': float(max_sim), 'id': id, 'image': base64.b64encode(buffered.getvalue()).decode('utf-8') }}))
