@@ -15,7 +15,7 @@ import os
 import datetime
 # import matplotlib.pyplot as plt
 
-BAUDRATE = 460800
+BAUDRATE = 230400
 devices = []
 
 def print_until_keyword(keyword, dev):

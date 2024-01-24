@@ -1,7 +1,7 @@
 /* Includes ---------------------------------------------------------------- */
 #include "image_provider.h"
 
-const uint32_t BAUD_RATE = 460800;
+const uint32_t BAUD_RATE = 230400;
 
 void setup() {
     Serial.begin(BAUD_RATE);
@@ -14,7 +14,7 @@ void setup() {
 }
 
 void loop() {
-    delay(500);
+    delay(5000);
     char read;
     Serial.println("wait");
     while(!Serial.available());

@@ -27,7 +27,7 @@ from know_faces_embedding_client import SAVED_FILE
 
 #________________________ VARIABLES ___________________________
 THRESHOLD = 0.8
-LIMIT_TIME = 10
+LIMIT_TIME = 15
 
 #________________________ FUNCTION ___________________________
 def print_until_keyword(keyword, dev):
