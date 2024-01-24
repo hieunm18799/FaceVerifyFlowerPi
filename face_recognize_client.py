@@ -97,11 +97,9 @@ def on_request(client: mqtt.Client, userdata, message):
                 for person_id, person_known_embedding in faces_embedding.items():
                     for known_embedding in person_known_embedding:
                         temp = cal_similarity(embedding, known_embedding)
-                        sim = temp if temp > sim else sim
-
-                    if sim > max_sim:
-                        max_sim = sim
-                        id = person_id
+                        if temp > max_sim:
+                            max_sim = temp
+                            id = person_id
 
                 pil_img = transforms.ToPILImage()(image)
                 pil_img.save(buffered, format="JPEG")
